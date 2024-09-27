@@ -1,0 +1,22 @@
+{
+  "integrations": [
+    {
+      "name": "Email",
+      "description": "Send emails to your users",
+      "meta_data": {
+        "from": "noreply@example.com",
+        "host": "smtp.example.com",
+        "port": 587,
+        "username": "user@example.com",
+        "password": "password"
+      }
+    },
+    {
+      "name": "Discord",
+      "description": "Send messages to your Discord server via webhooks",
+      "meta_data": {
+        "webhook_url": "https://discord.com/api/webhooks/1234567890/abcdefghijklmnopqrstuvwxyz"
+      }
+    }
+  ]
+}
