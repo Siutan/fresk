@@ -172,9 +172,8 @@
           <Table.Head class="w-[100px]">Group Id</Table.Head>
           <Table.Head class="w-[200px]">Log Type</Table.Head>
           <Table.Head class="w-44">Value</Table.Head>
-          <Table.Head class="">Notes</Table.Head>
           <Table.Head class="w-[100px]">Assignee</Table.Head>
-          <Table.Head class="w-[100px]">Timestamp</Table.Head>
+          <Table.Head class="w-[200px]">Last Error Timestamp</Table.Head>
         </Table.Row>
       </Table.Header>
       <Table.Body>
@@ -184,7 +183,7 @@
               <Button
                 variant="ghost"
                 size="sm"
-                on:click={() => viewLog(row.id)}
+                on:click={() => goto(`/app/${appId}/groups/${row.id}`)}
               >
                 {row.id}
               </Button>
@@ -208,14 +207,6 @@
               </p>
             </Table.Cell>
             <Table.Cell>
-              <ItemContextMenu
-                triggerText={row.note}
-                value={row.note}
-                rowLabel="note"
-                on:add-filter-query={handleAddFilterQuery}
-              />
-            </Table.Cell>
-            <Table.Cell>
               {@const selectedMember = row.expand ? row.expand.assignee : null}
               <AssignMemberSelect
                   {members}
@@ -226,7 +217,7 @@
             <Table.Cell class="font-medium">
               <ItemContextMenu
                 triggerText={new Date(row.created).toLocaleString()}
-                value={row.created}
+                value={row.latest_seen}
                 rowLabel="created"
                 on:add-filter-query={handleAddFilterQuery}
               />

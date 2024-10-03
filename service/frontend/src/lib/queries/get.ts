@@ -41,8 +41,20 @@ const pbGet = {
           sort: "-created",
           expand: "errors, assignee",
         });
-        console.log(records);
       return { data: records, error: null };
+    } catch (error) {
+      console.error("error", error);
+      return { data: null, error };
+    }
+  },
+  getLogGroupById: async (pocketbase = pb, groupId: string) => {
+    try {
+      const record = await pocketbase
+        .collection("error_group_view")
+        .getOne(groupId, {
+          expand: "assignee",
+        });
+      return { data: record, error: null };
     } catch (error) {
       console.error("error", error);
       return { data: null, error };
@@ -69,6 +81,18 @@ const pbGet = {
         .collection("error_groups")
         .getList(1, 500, options);
       return { data: record, error: null };
+    } catch (error) {
+      console.error("error", error);
+      return { data: null, error };
+    }
+  },
+  getErrorsByErrorGroupId: async (pocketbase = pb, groupId: string) => {
+    try {
+      const records = await pocketbase.collection("errors").getFullList({
+        filter: `error_group="${groupId}"`,
+        sort: "-created",
+      });
+      return { data: records, error: null };
     } catch (error) {
       console.error("error", error);
       return { data: null, error };

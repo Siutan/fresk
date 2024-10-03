@@ -1,13 +1,12 @@
+
 <script lang="ts">
   import "../app.css";
   import { Toaster } from "$lib/components/ui/sonner";
   import { ModeWatcher } from "mode-watcher";
   import { currentUser } from "$lib/stores/user";
   import type { PageData } from "./$types";
-  import { afterNavigate } from "$app/navigation";
-  import { cubicOut } from "svelte/easing";
-  import { fly, scale } from "svelte/transition";
-  import { writable } from "svelte/store";
+  import ScrollArea from "$lib/components/ui/scroll-area/scroll-area.svelte";
+
   import Nav from "$lib/components/nav.svelte";
   import { primaryRoutes, secondaryRoutes } from "$lib/components/layoutConfig";
 
@@ -27,17 +26,17 @@
   {#if !$currentUser}
     <slot />
   {:else}
-    <div class="flex w-full h-screen p-2 bg-background">
+    <div class="flex w-full h-screen p-2">
       <div class="flex flex-col">
         <Nav isCollapsed={true} routes={primaryRoutes} />
         <Nav isCollapsed={true} routes={secondaryRoutes} />
       </div>
       <div class="flex w-full justify-center">
-        <div
-          class="w-full max-w-7xl h-full p-5"
+        <ScrollArea
+          class="w-full max-w-7xl h-full p-5 overflow-auto "
         >
           <slot />
-        </div>
+        </ScrollArea>
       </div>
     </div>
   {/if}

@@ -6,6 +6,25 @@ import { terser } from "rollup-plugin-terser";
 import nodePolyfills from "rollup-plugin-polyfill-node";
 
 export default [
+  // configuration for the parser
+  {
+    input: "src/core/parser.js",
+    output: {
+      file: "dist/core/parser.js",
+      format: "esm", // Immediately Invoked Function Expression
+    },
+    plugins: [
+      resolve(),
+      commonjs(),
+      babel({
+        babelHelpers: "bundled",
+        exclude: "node_modules/**",
+      }),
+      json(),
+      terser(), // Optional: minify the output
+      nodePolyfills(), // Adds polyfills for Node.js APIs
+    ],
+  },
   // Configuration for the core SDK
   {
     input: "src/core/index.js",

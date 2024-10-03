@@ -33,23 +33,19 @@
 
   $: fetchLogs(currentPage, perPage, searchQuery);
 
+  $: {
+    // Update local state when URL parameters change
+    currentPage = parseInt(searchParams.get("page") || "1", 10);
+    searchQuery = searchParams.get("q") || "";
+    fetchLogs(currentPage, perPage, searchQuery);
+  }
+
   async function fetchLogs(
     currentPage: number,
     perPage: number,
     query: string
   ) {
     loading = true;
-    // update search params
-    if (query) {
-      searchParams.set("q", query);
-    } else {
-      searchParams.delete("q");
-    }
-    searchParams.set("page", currentPage.toString());
-    if (browser) {
-      goto(`?${searchParams.toString()}`, { replaceState: true });
-    }
-
     try {
       if (query) {
         const { data, error } = await pbGet.getLogsByCustomQuery(appId, query);
@@ -81,19 +77,24 @@
     const formData = new FormData(form);
     searchQuery = formData.get("search") as string;
     currentPage = 1;
-    fetchLogs(currentPage, perPage, searchQuery);
+    updateURL();
+  }
+
+  function updateURL() {
+    const params = new URLSearchParams();
+    params.set("page", currentPage.toString());
+    if (searchQuery) {
+      params.set("q", searchQuery);
+    }
+    if (browser) {
+      goto(`?${params.toString()}`, { replaceState: true });
+    }
   }
 
   function viewLog(logId: string) {
     logStore.setLog(logId);
     openSheet = true;
   }
-
-  onMount(() => {
-    searchQuery = searchParams.get("q") || "";
-    currentPage = parseInt(searchParams.get("page") || "1", 10);
-    fetchLogs(currentPage, perPage, searchQuery);
-  });
 
   function handleAddFilterQuery(e: CustomEvent<{ value: string }>) {
     const newQuery = e.detail.value;
@@ -110,6 +111,12 @@
     } else {
       searchQuery = newQuery;
     }
+    updateURL();
+  }
+
+  function changePage(newPage: number) {
+    currentPage = newPage;
+    updateURL();
   }
 </script>
 
@@ -238,8 +245,8 @@
   <div class="flex gap-2">
     {#if totalPages > 10}
       <Button
-        on:click={() => (currentPage = 1)}
-        disabled={currentPage === 1}
+      on:click={() => changePage(Math.max(1, currentPage - 1))}
+      disabled={currentPage === 1}
         variant="ghost"
         size="icon">1</Button
       >
@@ -281,7 +288,7 @@
     {/if}
   </div>
   <Button
-    on:click={() => currentPage++}
+  on:click={() => changePage(Math.min(totalPages, currentPage + 1))}
     disabled={currentPage === totalPages || logs.length < perPage}
     variant="ghost"
     size="icon"

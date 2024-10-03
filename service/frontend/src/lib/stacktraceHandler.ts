@@ -1,4 +1,8 @@
-import { SourceMapConsumer, type RawSourceMap, type MappedPosition } from "source-map-js";
+import {
+  SourceMapConsumer,
+  type RawSourceMap,
+  type MappedPosition,
+} from "source-map-js";
 import { pbGet } from "$lib/queries/get";
 
 interface SourceMap {
@@ -8,13 +12,11 @@ interface SourceMap {
 }
 
 interface StackFrame {
-  fileName?: string; // Make fileName optional
-  lineNumber?: number; // Make lineNumber optional
-  column?: number; // Make column optional
-  methodName?: string; // Make methodName optional
-  source?: string; // Make source optional
-  name?: string; // Make name optional
-  line?: number; // Make line optional
+  col: number;
+  file: string;
+  function: string;
+  line: number;
+  raw: string;
 }
 
 interface StackTrace {
@@ -30,53 +32,51 @@ interface UnifiedPosition {
   method: string | null;
 }
 
-async function decodeStacktrace(stacktrace: string, buildId: string): Promise<string> {
-  try {
-    const parsedStackTrace = parseStackTrace(stacktrace);
-    const sourceMaps = await fetchSourceMaps(parsedStackTrace.fileNames, buildId);
-    return transform(sourceMaps, parsedStackTrace);
-  } catch (error) {
-    console.error("Error decoding stacktrace:", error);
-    throw new Error("Failed to decode stacktrace");
-  }
+interface EnhancedStacktraceResult {
+  decodedStacktrace: string;
+  codeContext: CodeContextLine[] | null;
+  decodedFileName: string | null;
 }
 
-function parseStackTrace(stacktrace: string): StackTrace {
-  const lines = stacktrace.split("\n");
-  const message = lines[0];
+function parseStackTrace(stackframes: StackFrame[]): StackTrace {
   const frames: StackFrame[] = [];
   const fileNames: Set<string> = new Set();
 
-  for (let i = 1; i < lines.length; i++) {
-    const match = lines[i].match(/at (.+?) \((.+):(\d+):(\d+)\)/);
-    if (match) {
-      const [_, methodName, fileName, lineNumber, columnNumber] = match;
-      frames.push({
-        methodName,
-        fileName,
-        lineNumber: parseInt(lineNumber, 10),
-        column: parseInt(columnNumber, 10),
-      });
-      fileNames.add(fileName);
-    }
+  for (const frame of stackframes) {
+    frames.push({
+      methodName: frame.function,
+      fileName: frame.file,
+      lineNumber: frame.line,
+      column: frame.col,
+    });
+    fileNames.add(frame.file);
   }
 
   return {
-    message,
+    message: "Error", // You might want to pass this separately if available
     frames,
     fileNames: Array.from(fileNames),
   };
 }
 
-async function fetchSourceMaps(fileNames: string[], buildId: string): Promise<SourceMap[]> {
+async function fetchSourceMaps(
+  fileNames: string[],
+  buildId: string
+): Promise<SourceMap[]> {
   const sourceMaps: SourceMap[] = [];
 
   for (const fileName of fileNames) {
     const mapFile = `${fileName.split("/").pop()}.map`;
     try {
-      const { data: sourceMapRecord, error } = await pbGet.getSourceMapByFileName(mapFile, buildId);
+      const { data: sourceMapRecord, error } =
+        await pbGet.getSourceMapByFileName(mapFile, buildId);
       if (error || !sourceMapRecord) {
-        throw new Error(`Failed to fetch source map for ${mapFile}: ${error || "Unknown error"}`);
+        console.warn(
+          `Failed to fetch source map for ${mapFile}: ${
+            error || "Unknown error"
+          }`
+        );
+        continue;
       }
       const rawSourceMap: RawSourceMap = sourceMapRecord.map;
       const consumer = await new SourceMapConsumer(rawSourceMap);
@@ -96,16 +96,22 @@ async function fetchSourceMaps(fileNames: string[], buildId: string): Promise<So
 function transform(sourceMaps: SourceMap[], stackTrace: StackTrace): string {
   const bindings = calculateBindings(sourceMaps, stackTrace);
   if (Object.keys(bindings).length === 0) {
-    return stackTrace.message + '\n' + stackTrace.frames.map(frame => generateStackTraceLine(toUnifiedPosition(frame))).join('\n');
+    return (
+      stackTrace.message +
+      "\n" +
+      stackTrace.frames
+        .map((frame) => generateStackTraceLine(toUnifiedPosition(frame)))
+        .join("\n")
+    );
   }
 
   const result = [stackTrace.message];
-  const transformed = stackTrace.frames.map(frame =>
+  const transformed = stackTrace.frames.map((frame) =>
     generateStackTraceLine(
       toUnifiedPosition(tryGetOriginalPosition(frame, bindings) ?? frame)
     )
   );
-  return result.concat(transformed).join('\n');
+  return result.concat(transformed).join("\n");
 }
 
 function tryGetOriginalPosition(
@@ -113,20 +119,32 @@ function tryGetOriginalPosition(
   bindings: Record<string, SourceMap>
 ): MappedPosition | null {
   const { column, fileName, lineNumber } = stackFrame;
-  if (!fileName || !bindings[fileName] || lineNumber == null || column == null) {
-    console.warn(`Original position not found for frame: ${JSON.stringify(stackFrame)}`);
+  if (
+    !fileName ||
+    !bindings[fileName] ||
+    lineNumber == null ||
+    column == null
+  ) {
+    console.warn(
+      `Original position not found for frame: ${JSON.stringify(stackFrame)}`
+    );
     return null;
   }
-  return bindings[fileName].consumer.originalPositionFor({ line: lineNumber, column });
+  return bindings[fileName].consumer.originalPositionFor({
+    line: lineNumber,
+    column,
+  });
 }
 
 function generateStackTraceLine(position: UnifiedPosition): string {
   const { column, file, line, method } = position;
-  return `  at${method ? ` ${method}` : ''} (${file}:${line}:${column})`;
+  return `  at${method ? ` ${method}` : ""} (${file}:${line}:${column})`;
 }
 
-function toUnifiedPosition(position: MappedPosition | StackFrame): UnifiedPosition {
-  if ('lineNumber' in position) {
+function toUnifiedPosition(
+  position: MappedPosition | StackFrame
+): UnifiedPosition {
+  if ("lineNumber" in position) {
     return {
       column: position.column || 0,
       file: position.fileName || "",
@@ -142,11 +160,17 @@ function toUnifiedPosition(position: MappedPosition | StackFrame): UnifiedPositi
   };
 }
 
-function calculateBindings(sourceMaps: SourceMap[], stackTrace: StackTrace): Record<string, SourceMap> {
+function calculateBindings(
+  sourceMaps: SourceMap[],
+  stackTrace: StackTrace
+): Record<string, SourceMap> {
   const bindings: Record<string, SourceMap> = {};
   for (const fileName of stackTrace.fileNames) {
     for (const sourceMap of sourceMaps) {
-      if (fileName === sourceMap.fileNameInline || fileName === sourceMap.fileName) {
+      if (
+        fileName === sourceMap.fileNameInline ||
+        fileName === sourceMap.fileName
+      ) {
         bindings[fileName] = sourceMap;
       }
     }
@@ -154,4 +178,129 @@ function calculateBindings(sourceMaps: SourceMap[], stackTrace: StackTrace): Rec
   return bindings;
 }
 
-export { decodeStacktrace };
+function extractCodeFromSourceMap(
+  consumer: SourceMapConsumer,
+  fileName: string,
+  lineNumber: number,
+  contextLines: number = 5
+): string | null {
+  const sourceContent = consumer.sourceContentFor(fileName);
+  if (!sourceContent) {
+    console.warn(`Source content not found in source map for ${fileName}`);
+    return null;
+  }
+
+  const lines = sourceContent.split("\n");
+  const startLine = Math.max(0, lineNumber - contextLines - 1);
+  const endLine = Math.min(lines.length, lineNumber + contextLines);
+
+  return lines
+    .slice(startLine, endLine)
+    .map((line, index) => {
+      const currentLineNumber = startLine + index + 1;
+      const indicator = currentLineNumber === lineNumber ? ">" : " ";
+      return `${indicator} ${currentLineNumber.toString().padStart(5)}: ${line}`;
+    })
+    .join("\n");
+}
+
+async function decodeStacktrace(
+  stackframes: StackFrame[],
+  buildId: string
+): Promise<string> {
+  try {
+    console.log(stackframes);
+    const parsedStackTrace = parseStackTrace(stackframes);
+    const sourceMaps = await fetchSourceMaps(
+      parsedStackTrace.fileNames,
+      buildId
+    );
+    return transform(sourceMaps, parsedStackTrace);
+  } catch (error) {
+    console.error("Error decoding stacktrace:", error);
+    throw new Error("Failed to decode stacktrace");
+  }
+}
+
+interface CodeContextLine {
+  line: number;
+  isHighlighted: boolean;
+  text: string;
+}
+
+interface EnhancedStacktraceResult {
+  decodedStacktrace: string;
+  codeContext: CodeContextLine[] | null;
+}
+
+function formatCodeContext(
+  codeContext: string | null,
+  errorLine: number
+): CodeContextLine[] | null {
+  if (!codeContext) return null;
+
+  const lines = codeContext.split('\n');
+  const formattedContext: CodeContextLine[] = [];
+
+  for (const line of lines) {
+    const match = line.match(/^(>?\s*)(\d+):\s(.*)$/);
+    if (match) {
+      const [, , lineNumber, code] = match;
+      const currentLineNumber = parseInt(lineNumber, 10);
+      formattedContext.push({
+        line: currentLineNumber,
+        isHighlighted: currentLineNumber === errorLine,
+        text: code.trimEnd() // Remove trailing whitespace
+      });
+    }
+  }
+
+  return formattedContext;
+}
+
+
+
+async function enhancedDecodeStacktrace(
+  stackframes: StackFrame[],
+  buildId: string
+): Promise<EnhancedStacktraceResult> {
+  try {
+    console.log(stackframes);
+    const parsedStackTrace = parseStackTrace(stackframes);
+    const sourceMaps = await fetchSourceMaps(
+      parsedStackTrace.fileNames,
+      buildId
+    );
+    const decodedStacktrace = transform(sourceMaps, parsedStackTrace);
+
+    const bindings = calculateBindings(sourceMaps, parsedStackTrace);
+    const firstFrame = parsedStackTrace.frames[0];
+    const originalPosition = tryGetOriginalPosition(firstFrame, bindings);
+
+    let codeContext: CodeContextLine[] | null = null;
+    if (originalPosition && originalPosition.source) {
+      const sourceMap = bindings[firstFrame.fileName || ""];
+      if (sourceMap) {
+        const rawCodeContext = extractCodeFromSourceMap(
+          sourceMap.consumer,
+          originalPosition.source,
+          originalPosition.line || 0
+        );
+        codeContext = formatCodeContext(rawCodeContext, originalPosition.line || 0)
+      }
+    }
+
+    const decodedFileName = originalPosition ? originalPosition.source : null;
+
+    return {
+      decodedStacktrace,
+      codeContext,
+      decodedFileName,
+    };
+  } catch (error) {
+    console.error("Error decoding stacktrace:", error);
+    throw new Error("Failed to decode stacktrace");
+  }
+}
+
+export { decodeStacktrace, enhancedDecodeStacktrace };

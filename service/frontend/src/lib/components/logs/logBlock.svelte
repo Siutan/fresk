@@ -18,7 +18,7 @@
       <div class="flex flex-col">
         <h4 class="text-md font-medium">{metricName}</h4>
         <Textarea
-          value={metricValue !== undefined ? metricValue.toString() : "N/A"}
+          value={metricValue ? metricValue.toString() : "N/A"}
           readonly={true}
           disabled={metricValue === undefined}
         ></Textarea>
@@ -30,7 +30,7 @@
         <div class="flex flex-col">
           <h4 class="text-md font-medium">{key}</h4>
           <Textarea
-            value={value !== undefined ? value.toString() : "N/A"}
+            value={value ? value.toString() : "N/A"}
             readonly={true}
             disabled={value === undefined}
           ></Textarea>

@@ -1,7 +1,9 @@
 {
   "cSpell.words": [
     "Automigrate",
+    "biomejs",
     "bowser",
+    "Contentful",
     "daos",
     "dismissable",
     "Fresk",
@@ -10,8 +12,10 @@
     "migratecmd",
     "percurrent",
     "pocketbase",
+    "Siutan",
     "sonner",
     "sourcemaps",
-    "vaul"
+    "vaul",
+    "stackframes",
   ]
 }

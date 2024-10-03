@@ -15,8 +15,6 @@ export const load: PageServerLoad = async ({ params, locals, parent }) => {
   const startDate = new Date(endDate.getTime() - 30 * 24 * 60 * 60 * 1000);
   const startDateFormatted = startDate.toISOString().replace('T', ' ')
 
-  console.log(startDateFormatted, endDateFormatted);
-
   const { data: logs, error: logError } = await pbGet.getLogsInRange(
     locals.pb,
     appId,

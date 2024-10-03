@@ -68,13 +68,18 @@ export default function freskPlugin(options) {
     name: "vite-plugin-fresk",
     configResolved(config) {
       sourcemapDir = options.sourcemapDir || config.build.outDir;
+      if (config.command !== "build") {
+        console.warn(
+          "The Fresk Vite plugin is only compatible with the 'build' command. Skipping..."
+        );
+        return;
+      }
     },
     async buildStart() {
       // Read the SDK file
       console.log(__dirname);
       const sdkPath = path.resolve(__dirname, "./core/index.js");
       const sdkContent = await fs.promises.readFile(sdkPath, "utf-8");
-
 
       // Add the SDK file to the build pipeline
       this.emitFile({

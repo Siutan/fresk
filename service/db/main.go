@@ -142,14 +142,15 @@ func main() {
 			record.Set("app_environment", reqBody.AppEnvironment)
 			record.Set("session_id", reqBody.SessionID)
 			record.Set("session_email", reqBody.SessionEmail)
-			record.Set("device_type", reqBody.DeviceType)
+			record.Set("device_type", reqBody.Platform)
 			record.Set("browser_name", reqBody.BrowserName)
-			record.Set("browser_os", reqBody.BrowserOS)
 			record.Set("browser_version", reqBody.BrowserVersion)
+			record.Set("os_name", reqBody.OsName)
+			record.Set("os_version", reqBody.OsVersion)
 			record.Set("log_type", reqBody.LogType)
 			record.Set("page_id", reqBody.PageID)
 			record.Set("page_url", reqBody.PageURL)
-			record.Set("screen_resolution", reqBody.ScreenResolution)
+			record.Set("screen_resolution", reqBody.ScreenSize)
 			record.Set("viewport_size", reqBody.ViewportSize)
 			record.Set("memory_usage", reqBody.MemoryUsage)
 			record.Set("network_type", reqBody.NetworkType)
@@ -162,7 +163,7 @@ func main() {
 			record.Set("value", reqBody.Value)
 			record.Set("stacktrace", reqBody.Stacktrace)
 			record.Set("custom", reqBody.Custom)
-
+			record.Set("breadcrumbs", reqBody.Breadcrumbs)
 			record.Set("error_group", errorGroupID)
 			record.Set("fingerprint", fingerprint)
 
@@ -372,7 +373,7 @@ func FindAllUsers(dao *daos.Dao) ([]*models.Record, error) {
 // checkRequiredFields checks if the required fields are present in the requestBody struct.
 func checkRequiredFields(reqBody types.RequestBody) []string {
 	var missingFields []string
-	var optionalFields []string = []string{"session_email", "referrer", "performance_metrics", "custom"}
+	var optionalFields []string = []string{"session_email", "referrer", "performance_metrics", "memory_usage", "custom", "stacktrace"}
 
 	v := reflect.ValueOf(reqBody)
 	typeOfS := v.Type()

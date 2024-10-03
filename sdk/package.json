@@ -1,5 +1,5 @@
 {
-  "version": "0.1.38",
+  "version": "0.1.50",
   "name": "fresk-web-sdk",
   "description": "Error reporting and monitoring for web applications",
   "type": "module",
@@ -8,13 +8,13 @@
     "dist"
   ],
   "peerDependencies": {
-    "vite": "^5.0.0"
+    "typescript": "^5.0.0"
   },
   "dependencies": {
     "bowser": "^2.11.0"
   },
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "test": "jest --verbose",
     "build": "rollup -c",
     "prepublishOnly": "bun run build"
   },
@@ -24,10 +24,15 @@
   "author": "Siutan",
   "license": "MIT",
   "devDependencies": {
+    "@babel/preset-env": "^7.25.4",
+    "@biomejs/biome": "1.9.3",
     "@rollup/plugin-babel": "^6.0.4",
     "@rollup/plugin-commonjs": "^28.0.0",
     "@rollup/plugin-json": "^6.1.0",
     "@rollup/plugin-node-resolve": "^15.3.0",
+    "@types/bun": "latest",
+    "jest": "^29.7.0",
+    "jest-environment-jsdom": "^29.7.0",
     "rollup": "^4.22.4",
     "rollup-plugin-polyfill-node": "^0.13.0",
     "rollup-plugin-terser": "^7.0.2"

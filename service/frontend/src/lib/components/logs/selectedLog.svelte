@@ -8,7 +8,10 @@
   import LogHeader from "./logHeader.svelte";
   import Separator from "$lib/components/ui/separator/separator.svelte";
   import type { Log } from "$lib/types/Log";
-  import { decodeStacktrace } from "$lib/stacktraceHandler";
+  import {
+    decodeStacktrace,
+    enhancedDecodeStacktrace,
+  } from "$lib/stacktraceHandler";
 
   let log: Log | undefined;
 
@@ -19,7 +22,10 @@
     const { data: thisLog, error } = await pbGet.getLogById(id);
     if (error || !thisLog) return;
 
-    const { data: app, error: appError } = await pbGet.getAppById(undefined, thisLog.app);
+    const { data: app, error: appError } = await pbGet.getAppById(
+      undefined,
+      thisLog.app
+    );
     if (appError || !app) return;
     appDetails = app;
 
@@ -29,6 +35,13 @@
         thisLog.stacktrace,
         thisLog.build
       );
+
+      const enhanced_trace = await enhancedDecodeStacktrace(
+        thisLog.stacktrace,
+        thisLog.build
+      );
+
+      console.log(enhanced_trace);
     } catch (error) {
       console.error("Error decoding stacktrace:", error);
       decoded_stacktrace = thisLog.stacktrace;
@@ -46,7 +59,8 @@
       decoded_stacktrace: decoded_stacktrace,
       browser_name: thisLog.browser_name,
       browser_version: thisLog.browser_version,
-      browser_os: thisLog.browser_os,
+      os_name: thisLog.os_name,
+      os_version: thisLog.os_version,
       device_type: thisLog.device_type,
       created: Number.parseInt(thisLog.created),
       custom: thisLog.custom,

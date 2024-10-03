@@ -1,4 +1,8 @@
-<svg class="loader" viewBox="0 0 100 100">
+<script lang="ts">
+  export let size = 20;
+</script>
+
+<svg class="loader" viewBox="0 0 100 100" style="width: {size}px; height: {size}px;">
   <circle
     class="loader__ring loader__ring--a stroke-primary"
     cx="50"
@@ -24,7 +28,7 @@
     stroke-width="8"
   />
   <circle
-    class="loader__ring loader__ring--d stroke-rose-500"
+    class="loader__ring loader__ring--d stroke-sky-500"
     cx="50"
     cy="50"
     r="16"
@@ -34,10 +38,6 @@
 </svg>
 
 <style>
-  .loader {
-    width: 200px;
-    height: 200px;
-  }
   .loader__ring {
     stroke-dasharray: 580;
     stroke-dashoffset: 580;

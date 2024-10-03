@@ -57,7 +57,7 @@
       : null}
     onSelectedChange={handleSelect}
   >
-    <Select.Trigger class="w-[180px]">
+    <Select.Trigger class="w-full">
       <Select.Value placeholder="Select a member" />
     </Select.Trigger>
     <Select.Content>
