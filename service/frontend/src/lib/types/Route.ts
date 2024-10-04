@@ -7,4 +7,5 @@ export type Route = {
     route: string;
     icon: ComponentType<Icon>;
     variant: "default" | "ghost";
+    adminRoute: boolean;
   };

@@ -1,9 +1,5 @@
 {
-  "appName": "my app",
-  "appVersion": "1.0.0",
-  "url": "http://127.0.0.1:8090",
-  "appId": "EBF27DA0",
-  "appKey": "888b8885-1793-4a8c-8f67-fb454851aa84",
   "allowRegistration": true,
+  "url": "http://127.0.0.1:8090",
   "allowedOrigins": []
 }

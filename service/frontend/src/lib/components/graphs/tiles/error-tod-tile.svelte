@@ -19,7 +19,6 @@
     date: hour,
     value: errors.length,
   }));
-  console.log(formattedData);
 </script>
 
 <div class="h-96 px-4">

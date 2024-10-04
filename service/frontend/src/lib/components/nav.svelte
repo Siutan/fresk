@@ -5,19 +5,19 @@
   import { page } from "$app/stores";
   import type { Route } from "$lib/types/Route";
 
-  export let isCollapsed: boolean;
+  export let access_level: number;
   export let routes: Route[];
 </script>
 
 <div
-  data-collapsed={isCollapsed}
+  data-collapsed={true}
   class="group flex flex-col gap-4 py-2 data-[collapsed=true]:py-2"
 >
   <nav
-    class="grid gap-1 px-2 group-[[data-collapsed=true]]:justify-center group-[[data-collapsed=true]]:px-2"
+    class="grid gap-4 px-2 group-[[data-collapsed=true]]:justify-center group-[[data-collapsed=true]]:px-2"
   >
     {#each routes as route}
-      {#if isCollapsed}
+      {#if !route.adminRoute || access_level > 1}
         <Tooltip.Root openDelay={0}>
           <Tooltip.Trigger asChild let:builder>
             <Button
@@ -43,29 +43,6 @@
             {/if}
           </Tooltip.Content>
         </Tooltip.Root>
-      {:else}
-        <Button
-          href={route.route}
-          variant={route.route === $page.url.pathname ? "default" : "ghost"}
-          size="sm"
-          class={"justify-start"}
-        >
-          <svelte:component
-            this={route.icon}
-            class="mr-2 size-4"
-            aria-hidden="true"
-          />
-          {route.title}
-          {#if route.label}
-            <span
-              class={cn("ml-auto", {
-                "text-background dark:text-white": route.variant === "default",
-              })}
-            >
-              {route.label}
-            </span>
-          {/if}
-        </Button>
       {/if}
     {/each}
   </nav>

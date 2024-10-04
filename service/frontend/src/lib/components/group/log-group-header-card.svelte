@@ -18,7 +18,6 @@
       error.build
     );
 
-    console.log(stacktrace);
     // get the line where isHighlighted is true
     if (!stacktrace.codeContext)
       return `${group.group_log_type}+${group.group_log_value}`;

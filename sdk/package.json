@@ -11,7 +11,8 @@
     "typescript": "^5.0.0"
   },
   "dependencies": {
-    "bowser": "^2.11.0"
+    "bowser": "^2.11.0",
+    "rrweb": "^2.0.0-alpha.4"
   },
   "scripts": {
     "test": "jest --verbose",

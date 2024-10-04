@@ -41,7 +41,6 @@
         thisLog.build
       );
 
-      console.log(enhanced_trace);
     } catch (error) {
       console.error("Error decoding stacktrace:", error);
       decoded_stacktrace = thisLog.stacktrace;

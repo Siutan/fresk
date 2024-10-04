@@ -24,7 +24,6 @@
 
   const { group, pageBreakdown, browserBreakdown, osBreakdown, errors } = data;
 
-  console.log(data);
 
   let currentLogIndex = errors ? errors.length - 1 : 0;
 

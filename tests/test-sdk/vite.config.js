@@ -1,7 +1,7 @@
 import { defineConfig } from "vite";
 import { svelte } from "@sveltejs/vite-plugin-svelte";
-//import freskPlugin from "../../sdk/vite/vite-plugin-fresk";
-import { FreskPluginVite } from "fresk-web-sdk";
+import { FreskPluginVite } from "../../sdk/dist/mod";
+// import { FreskPluginVite } from "fresk-web-sdk";
 const prod = process.env.NODE_ENV === "production";
 
 const freskConfig = {

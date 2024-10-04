@@ -1,4 +1,5 @@
 import Bowser from "bowser";
+import * as rrweb from "rrweb";
 import { parse } from "./parser";
 
 const SDK_VERSION = "0.1.50";
@@ -75,8 +76,8 @@ class FreskWebSDK {
   retryCount;
   /** @type {Parser.Parser} */
   browser;
-  /** @type {boolean} */
-  isHandlingError;
+  /** @type {any[]} */
+  events;
 
   /**
    * @param {Config} config
@@ -111,6 +112,8 @@ class FreskWebSDK {
 
     this.breadcrumbs = [];
     this.maxBreadcrumbs = 50;
+
+    this.events = [];
   }
 
   init() {
@@ -121,6 +124,9 @@ class FreskWebSDK {
     this.wrapFetch();
     this.captureClientInfo();
     this.startPerformanceMonitoring();
+    
+    // disabling recording for now, maybe we can come back to it later
+    // this.startRecording();
   }
 
   ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -152,6 +158,22 @@ class FreskWebSDK {
   ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
   // Hooks & wrappers //
   ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+  /**
+   * @private
+   * @description Start recording events
+   */
+  startRecording() {
+    rrweb.record({
+      emit: (event) => {
+        // Use an arrow function to preserve 'this' context
+        this.events.push(event);
+      },
+    });
+
+    // save recording every 10 seconds
+    setInterval(this.saveRecording, 10 * 1000);
+  }
 
   /** Hook errors to the window object */
   hookErrors() {
@@ -705,6 +727,29 @@ class FreskWebSDK {
       }
     }
     return metrics;
+  }
+
+  ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+  // DOM Recording //
+  ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+  // this function will send events to the backend and reset the events array
+  saveRecording = () => {
+    if (this.events.length === 0) {
+      console.debug("No events to save");
+      return;
+    }
+    const body = JSON.stringify({ events: this.events, session_id: this.getSessionId() });
+    this.events = [];
+    fetch(`${this.appUrl}/record`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-App-Id": this.appId,
+        "X-App-Key": this.appKey,
+      },
+      body,
+    });
   }
 }
 

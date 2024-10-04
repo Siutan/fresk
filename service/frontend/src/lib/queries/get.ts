@@ -1,12 +1,18 @@
 import { pb } from "$lib/pocketbase";
+import type { Member } from "$lib/types/member";
 
 const pbGet = {
   getAllMembers: async (pocketbase = pb) => {
     try {
       const records = await pocketbase.collection("users").getFullList({
         sort: "-created",
+      }) as Member[];
+
+      const mappedRecords = records.map((record) => {
+        record.avatar = `https://api.dicebear.com/9.x/avatar/svg?seed=${record.name}`;
+        return record;
       });
-      return { data: records, error: null };
+      return { data: mappedRecords, error: null };
     } catch (error) {
       console.error("error", error);
       return { data: null, error };

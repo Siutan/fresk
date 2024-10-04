@@ -5,10 +5,10 @@
     Subscribe,
     createRender,
   } from "svelte-headless-table";
-  import { readable, writable } from "svelte/store";
+  import { writable } from "svelte/store";
   import * as Table from "$lib/components/ui/table";
   import DeleteTableAction from "./delete-table-action.svelte";
-  import EditPopover from "./edit-popover.svelte";
+  import Avatar from "./avatar.svelte";
   import Button from "../ui/button/button.svelte";
   import {
     addPagination,
@@ -20,18 +20,18 @@
   import ChevronDown from "lucide-svelte/icons/chevron-down";
   import * as DropdownMenu from "$lib/components/ui/dropdown-menu";
   import DataTableCheckbox from "./table-checkbox.svelte";
+  import UpdateAccessLevel from "./update-access-level.svelte";
 
   import { ArrowUpDown } from "lucide-svelte";
   import Input from "../ui/input/input.svelte";
   import { deleteLogs } from "$lib/stores/test-store";
+  import type { Member } from "$lib/types/member";
+  import { currentUser } from "$lib/stores/user";
+  import { pbDelete } from "$lib/queries/delete";
+  import { toast } from "svelte-sonner";
+  import { invalidate } from "$app/navigation";
 
-  export let data: {
-    id: string;
-    app: string;
-    app_environment: string;
-    app_version: string;
-    build: string;
-  }[];
+  export let data: Member[];
 
   const tableData = writable(data);
 
@@ -67,22 +67,36 @@
       },
     }),
     table.column({
-      accessor: "app",
-      header: "App Id",
-    }),
-    table.column({
-      accessor: "app_environment",
-      header: "Environment",
-    }),
-    table.column({
-      accessor: "app_version",
-      header: "Version",
-    }),
-    table.column({
-      accessor: "build",
-      header: "Build",
+      accessor: "avatar",
+      header: "",
       cell: ({ value }) => {
-        return createRender(EditPopover, { value });
+        return createRender(Avatar, { seed: value });
+      },
+    }),
+    table.column({
+      accessor: "name",
+      header: "Name",
+    }),
+    table.column({
+      accessor: "email",
+      header: "User Email",
+    }),
+    table.column({
+      accessor: "access_level",
+      header: "Access level",
+      cell: ({ value, row }) => {
+        return createRender(UpdateAccessLevel, { id: row.original.id, access_level: value });
+      },
+    }),
+    table.column({
+      accessor: "status",
+      header: "Status",
+    }),
+    table.column({
+      accessor: "created",
+      header: "Joined",
+      cell: ({ value }) => {
+        return new Date(value).toLocaleDateString();
       },
     }),
     table.column({
@@ -116,15 +130,26 @@
     .filter(([, hide]) => !hide)
     .map(([id]) => id);
 
-  const hidableCols = ["app", "build", "app_version"];
+  const hidableCols = ["created", "status"];
 
-  const handleDelete = () => {
+  const handleDelete = async () => {
     const selectedIds = Object.keys($selectedDataIds).filter(
-      (id) => $selectedDataIds[id]
+      (id) => $selectedDataIds[id] && id !== $currentUser.id
     );
     const rowsToDelete = selectedIds.map((id) => $tableData[parseInt(id)].id);
-    deleteLogs.set(rowsToDelete);
+
+    for (const id of rowsToDelete) {
+      const { data, error } = await pbDelete.deleteMember(id);
+      if (error || !data) {
+        console.error("Error deleting member:", error);
+        toast.error("Error deleting member");
+        return;
+      }
+    }
+
     $selectedDataIds = {};
+    invalidate("app:users-server-load");
+    toast.success("Users deleted successfully");
   };
 </script>
 
@@ -141,7 +166,7 @@
       class="ml-auto"
       on:click={handleDelete}
       disabled={Object.keys($selectedDataIds).length === 0}
-      >Delete Selected</Button
+      >Remove Selected</Button
     >
 
     <DropdownMenu.Root>
@@ -163,7 +188,7 @@
   </div>
 </div>
 
-<div class="rounded-md border">
+<div class="rounded-md border border-muted">
   <Table.Root {...$tableAttrs}>
     <Table.Header>
       {#each $headerRows as headerRow}
@@ -177,7 +202,7 @@
                 let:props
               >
                 <Table.Head {...attrs} class="[&:has([role=checkbox])]:pl-3">
-                  {#if cell.id && cell.id !== "id"}
+                  {#if cell.id && cell.id !== "id" && cell.id !== "avatar"}
                     <Button
                       variant="ghost"
                       on:click={(e) => {

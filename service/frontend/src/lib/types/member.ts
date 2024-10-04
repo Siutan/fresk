@@ -7,5 +7,5 @@ export interface Member extends RecordModel {
   name: string;
   email: string;
   access_level: string;
-  completed_onboarding: boolean;
+  status: string;
 }

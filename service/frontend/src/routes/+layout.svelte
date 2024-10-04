@@ -27,13 +27,13 @@
     <slot />
   {:else}
     <div class="flex w-full h-screen p-2">
-      <div class="flex flex-col">
-        <Nav isCollapsed={true} routes={primaryRoutes} />
-        <Nav isCollapsed={true} routes={secondaryRoutes} />
+      <div class="flex flex-col justify-between gap-4">
+        <Nav access_level={$currentUser.access_level} routes={primaryRoutes} />
+        <Nav access_level={$currentUser.access_level} routes={secondaryRoutes} />
       </div>
       <div class="flex w-full justify-center">
         <ScrollArea
-          class="w-full max-w-7xl h-full p-5 overflow-auto "
+          class="w-full max-w-7xl h-full p-4 overflow-auto "
         >
           <slot />
         </ScrollArea>

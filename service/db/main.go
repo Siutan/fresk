@@ -16,8 +16,8 @@ import (
 	"github.com/pocketbase/pocketbase/plugins/migratecmd"
 
 	"fresk-server/fingerprinting"
-	"fresk-server/types"
 	_ "fresk-server/migrations"
+	"fresk-server/types"
 
 	"github.com/pocketbase/pocketbase/apis"
 	"github.com/pocketbase/pocketbase/core"
@@ -64,6 +64,9 @@ func main() {
 		return nil
 	})
 
+	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	// Error Handling //
+	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	app.OnBeforeServe().Add(func(e *core.ServeEvent) error {
 		e.Router.POST("/sendError", func(c echo.Context) error {
 			// Check for allowed origin
@@ -177,6 +180,10 @@ func main() {
 		return nil
 	})
 
+	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	// Build Handling //
+	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	
 	app.OnBeforeServe().Add(func(e *core.ServeEvent) error {
 		e.Router.POST("/createBuild", func(c echo.Context) error {
 			// Check for allowed origin
@@ -248,6 +255,10 @@ func main() {
 
 		return nil
 	})
+
+	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	// Source Map Handling //
+	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 	app.OnBeforeServe().Add(func(e *core.ServeEvent) error {
 		e.Router.POST("/addSourceMap", func(c echo.Context) error {
@@ -322,6 +333,62 @@ func main() {
 		return nil
 	})
 
+	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	// Recording Handling //
+	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+	app.OnBeforeServe().Add(func(e *core.ServeEvent) error {
+		e.Router.POST("/record", func(c echo.Context) error {
+			// Check for allowed origin
+			origin := c.Request().Header.Get("Origin")
+			if origin == "" {
+				origin = c.Request().Header.Get("Referer")
+			}
+
+			// if there are no allowed origins, allow all
+			if len(config.allowedOrigins) > 0 && !isAllowedURL(origin, config.allowedOrigins) {
+				return c.JSON(http.StatusForbidden, map[string]string{"error": "origin not allowed"})
+			}
+			// check the request headers for the x_app_id and the x_app_key
+			appId := c.Request().Header.Get("X-App-Id")
+			appKey := c.Request().Header.Get("X-App-Key")
+
+			if appId == "" || appKey == "" {
+				return c.JSON(http.StatusBadRequest, map[string]string{"status": "error", "message": "no app_id or app_key provided"})
+			}
+
+			// check if the app id and key match an app in the database
+			appRecord, err := app.Dao().FindRecordById("apps", appId)
+			if err != nil {
+				return c.JSON(http.StatusBadRequest, map[string]string{"status": "error", "message": "invalid app_id"})
+			}
+
+			// check if the key matches the one in the app record
+			if appRecord.Get("app_key") != appKey {
+				return c.JSON(http.StatusBadRequest, map[string]string{"status": "error", "message": "invalid app_key"})
+			}
+
+			// Check if the request body exists and the content type is JSON
+			if c.Request().Body == nil {
+				return c.JSON(http.StatusBadRequest, map[string]string{"status": "error", "message": "Request body is empty"})
+			}
+			contentType := c.Request().Header.Get("Content-Type")
+			if contentType != "application/json" {
+				return c.JSON(http.StatusBadRequest, map[string]string{"status": "error", "message": "Content type is not JSON"})
+			}
+
+			
+
+			return c.JSON(http.StatusOK, map[string]string{"status": "ok", "message": "Recording started successfully"})
+
+		})
+
+		return nil
+	})
+
+	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	// User Management //
+	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	app.OnRecordBeforeCreateRequest("users").Add(func(e *core.RecordCreateEvent) error {
 		admin, _ := e.HttpContext.Get(apis.ContextAdminKey).(*models.Admin)
 		if admin != nil {
@@ -338,11 +405,15 @@ func main() {
 		log.Println(records)
 
 		if len(records) == 0 {
-			e.Record.Set("access_level", "admin")
+			e.Record.Set("access_level", "2")
 			return nil
 		}
 
-		e.Record.Set("access_level", "member")
+		e.Record.Set("access_level", "1")
+
+		// set email visibility
+		e.Record.Set("email_visibility", true)
+		
 		return nil
 	})
 

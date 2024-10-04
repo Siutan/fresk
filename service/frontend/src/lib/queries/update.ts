@@ -19,6 +19,15 @@ const pbUpdate = {
       return { data: null, error };
     }
   },
+  updateUserAccessLevel: async (userId: string, data: any) => {
+    try {
+      const record = await pb.collection("users").update(userId, data);
+      return { data: record, error: null };
+    } catch (error) {
+      console.error("error", error);
+      return { data: null, error };
+    }
+  },
 };
 
 export { pbUpdate };

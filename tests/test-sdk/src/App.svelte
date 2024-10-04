@@ -1,7 +1,6 @@
 <script>
   import ThrowErrBtn from "./lib/ThrowErrBtn.svelte";
 
-  $:console.log(document.referrer)
 </script>
 
 <main>

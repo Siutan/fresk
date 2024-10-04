@@ -4,10 +4,11 @@ import type { Route } from "$lib/types/Route";
 export const primaryRoutes: Route[] = [
   {
     title: "Home",
-    label: "128",
+    label: "",
     route: "/",
     icon: Icons.Home,
     variant: "default",
+    adminRoute: false,
   },
   {
     title: "User Management",
@@ -15,6 +16,7 @@ export const primaryRoutes: Route[] = [
     route: "/users",
     icon: Icons.Users,
     variant: "ghost",
+    adminRoute: true,
   },
 ];
 
@@ -25,6 +27,7 @@ export const secondaryRoutes: Route[] = [
     route: "/settings",
     icon: Icons.Settings,
     variant: "ghost",
+    adminRoute: false,
   },
   {
     title: "Info",
@@ -32,5 +35,6 @@ export const secondaryRoutes: Route[] = [
     route: "/info",
     icon: Icons.Info,
     variant: "ghost",
+    adminRoute: false,
   },
 ];

@@ -8,7 +8,7 @@
   const { apps } = data;
 </script>
 
-<div class="w-full grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+<div class="w-full grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3 p-4">
   {#if apps.length > 0}
     {#each apps as app}
       <AppCard appName={app.app_name} appId={app.id} status={true} />
