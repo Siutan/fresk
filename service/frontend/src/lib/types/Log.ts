@@ -1,4 +1,6 @@
-export interface Log {
+import type{ RecordModel } from "pocketbase";
+
+export interface Log extends RecordModel {
   id: string;
   app_id: string;
   build_id: string;
@@ -28,6 +30,6 @@ export interface Log {
   stacktrace: string;
   decoded_stacktrace: string;
   custom: any;
-  created: number;
-  updated: number;
+  created: string;
+  updated: string;
 }

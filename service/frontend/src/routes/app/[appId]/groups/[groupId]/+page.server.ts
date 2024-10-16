@@ -2,6 +2,7 @@ import { pbGet } from "$lib/queries/get";
 import { error } from "@sveltejs/kit";
 import type { PageServerLoad } from "./$types";
 import type Client from "pocketbase";
+import type { Log } from "$lib/types/Log";
 
 export const load: PageServerLoad = async ({ params, locals }) => {
   const appId = params.appId;
@@ -11,7 +12,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 
   const group = await getGroupDetails(locals.pb, groupId);
 
-  const sessions = await getErrors(locals.pb, groupId);
+  const sessions = await getErrors(locals.pb, groupId) as Log[];
 
   // group the sessions where the page id is the same
   const pageBreakdown = sessions?.reduce(

@@ -265,7 +265,6 @@ async function enhancedDecodeStacktrace(
   buildId: string
 ): Promise<EnhancedStacktraceResult> {
   try {
-    console.log(stackframes);
     const parsedStackTrace = parseStackTrace(stackframes);
     const sourceMaps = await fetchSourceMaps(
       parsedStackTrace.fileNames,
