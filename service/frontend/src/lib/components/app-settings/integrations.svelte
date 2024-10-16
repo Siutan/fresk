@@ -2,6 +2,7 @@
   import * as Card from "$lib/components/ui/card/index.js";
   import * as Accordion from "$lib/components/ui/accordion/index.js";
   import Input from "../ui/input/input.svelte";
+  import Button from "../ui/button/button.svelte";
 
   export let integrations: any;
 </script>
@@ -15,6 +16,7 @@
   </Card.Header>
   <Card.Content>
     <div class="flex flex-col gap-2">
+      <Button variant="outline" class="w-full">Create Integration</Button>
       <Accordion.Root class="w-full">
         {#if integrations.length > 0}
           {#each integrations as integration}

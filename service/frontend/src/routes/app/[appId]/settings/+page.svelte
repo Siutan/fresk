@@ -9,5 +9,6 @@
 
 <div class="w-full flex flex-col gap-4">
   <General app={app} />
+
   <Integrations integrations={integrations} />
 </div>
