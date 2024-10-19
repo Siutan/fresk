@@ -1,12 +1,16 @@
 import { pb } from "$lib/pocketbase";
 import type { Member } from "$lib/types/member";
 
+type QueryOption = {
+  [key: string]: string;
+};
+
 const pbGet = {
   getAllMembers: async (pocketbase = pb) => {
     try {
-      const records = await pocketbase.collection("users").getFullList({
+      const records = (await pocketbase.collection("users").getFullList({
         sort: "-created",
-      }) as Member[];
+      })) as Member[];
 
       const mappedRecords = records.map((record) => {
         record.avatar = `https://api.dicebear.com/9.x/avatar/svg?seed=${record.name}`;
@@ -41,11 +45,10 @@ const pbGet = {
   getLogGroupsByAppId: async (appId: string, page: number, perPage: number) => {
     try {
       const records = await pb
-        .collection("error_groups")
+        .collection("error_group_view")
         .getList(page, perPage, {
           filter: `app="${appId}"`,
-          sort: "-created",
-          expand: "errors, assignee",
+          sort: "-latest_seen",
         });
       return { data: records, error: null };
     } catch (error) {
@@ -70,7 +73,7 @@ const pbGet = {
     try {
       // separate the query into filter and sort
       const [filter, sort] = query.split("?sort=");
-      const options: any = { app: appId };
+      const options: QueryOption = { app: appId };
 
       if (filter) {
         options.filter = `app="${appId}" && ${filter}`;
@@ -78,13 +81,13 @@ const pbGet = {
       if (sort) {
         options.sort = sort.replace(/"/g, "");
       } else {
-        options.sort = "-created";
+        options.sort = "-latest_seen";
       }
 
       options.expand = "assignee";
 
       const record = await pb
-        .collection("error_groups")
+        .collection("error_group_view")
         .getList(1, 500, options);
       return { data: record, error: null };
     } catch (error) {
@@ -120,7 +123,7 @@ const pbGet = {
     try {
       // separate the query into filter and sort
       const [filter, sort] = query.split("?sort=");
-      const options: any = { app: appId };
+      const options: QueryOption = { app: appId };
 
       if (filter) {
         options.filter = `app="${appId}" && ${filter}`;

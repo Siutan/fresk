@@ -79,7 +79,7 @@ async function fetchSourceMaps(
         continue;
       }
       const rawSourceMap: RawSourceMap = sourceMapRecord.map;
-      const consumer = await new SourceMapConsumer(rawSourceMap);
+      const consumer = new SourceMapConsumer(rawSourceMap);
       sourceMaps.push({
         consumer,
         fileName,

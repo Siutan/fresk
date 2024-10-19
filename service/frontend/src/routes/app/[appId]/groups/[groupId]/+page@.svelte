@@ -1,8 +1,6 @@
 <script lang="ts">
   import * as Card from "$lib/components/ui/card/index.js";
   import * as Tab from "$lib/components/ui/tabs/index.js";
-
-  import type { PageData } from "./$types";
   import LogGroupInfoCard from "$lib/components/group/log-group-info-card.svelte";
   import LogGroupHeaderCard from "$lib/components/group/log-group-header-card.svelte";
   import Separator from "$lib/components/ui/separator/separator.svelte";
@@ -12,6 +10,8 @@
   import BreadcrumbsContainer from "$lib/components/log-details/breadcrumbs-container.svelte";
   import CustomFields from "$lib/components/log-details/custom-fields.svelte";
   import LogDetailsHeader from "$lib/components/log-details/log-details-header.svelte";
+
+  import type { PageData } from "./$types";
 
   export let data: PageData;
 
@@ -86,7 +86,6 @@
                       {:else}
                         {@const currentError = errors[currentLogIndex]}
                         <div class="flex flex-col gap-4">
-                          <h3 class="text-sm font-bold">Details</h3>
                           <!-- Header -->
                           <LogDetailsHeader
                             {currentError}
@@ -104,10 +103,7 @@
                           <Separator />
 
                           <!-- User -->
-                          <UserDetails
-                            {currentError}
-                            groupAppId={group.group_app}
-                          />
+                          <UserDetails {currentError} groupAppId={group.app} />
                           <Separator />
 
                           <!-- Breadcrumbs -->

@@ -72,7 +72,7 @@
                 <img
                   src={avatar}
                   alt={member.name}
-                  class="w-8 h-8 rounded-full"
+                  class="w-5 h-5 rounded-full"
                   on:error={(e) => handleFallback(e, member.name)}
                 />
                 <div class="flex flex-col">

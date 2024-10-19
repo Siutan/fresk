@@ -6,6 +6,7 @@ export const badgeVariants = tv({
 	variants: {
 		variant: {
 			default: "bg-primary text-primary-foreground hover:bg-primary/80 border-transparent",
+			warning: "bg-amber-600 text-primary-foreground hover:bg-amber-600/80 border-transparent",
 			secondary:
 				"bg-secondary text-secondary-foreground hover:bg-secondary/80 border-transparent",
 			destructive:

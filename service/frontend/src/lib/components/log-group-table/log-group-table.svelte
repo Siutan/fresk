@@ -18,6 +18,9 @@
   import ItemContextMenu from "../log-data-table/item-context-menu.svelte";
   import AssignMemberSelect from "./assign-member-select.svelte";
   import type { Member } from "$lib/types/member";
+  import { cn, formatTimeAgo } from "$lib/utils";
+  import Badge from "../ui/badge/badge.svelte";
+  import * as Tooltip from "$lib/components/ui/tooltip/index.js";
 
   export let appId: string;
 
@@ -81,6 +84,8 @@
     }
   }
 
+  $: console.log(logs);
+
   function handleSearch(e: Event) {
     e.preventDefault();
     const form = e.target as HTMLFormElement;
@@ -116,6 +121,41 @@
     const { data, error } = await pbGet.getAllMembers();
     if (error || !data) return;
     members = data;
+  }
+
+  function getGroupStatus(latest_seen: Date): {
+    status: string;
+    variant: "default" | "destructive" | "warning";
+    tooltip: string;
+  } {
+    // if the latest seen is greater than a month, its "closed"
+    // if it is not seen in a few weeks, its "monitor"
+    // if it is seen in the last week, its "warning"
+
+    const currentDate = new Date();
+    const timeDiff = currentDate.getTime() - latest_seen.getTime();
+
+    if (timeDiff > 2629743830) {
+      return {
+        status: "closed",
+        variant: "default",
+        tooltip: "Not seen in over a month",
+      };
+    }
+
+    if (timeDiff > 604800000) {
+      return {
+        status: "monitor",
+        variant: "warning",
+        tooltip: "Not seen in over 2 week",
+      };
+    }
+
+    return {
+      status: "warning",
+      variant: "destructive",
+      tooltip: "Seen in the last week",
+    };
   }
 
   onMount(() => {
@@ -165,15 +205,16 @@
     <h2 class="text-2xl">No logs found</h2>
   </div>
 {:else if logs?.length > 0}
-  <ScrollArea class="h-[36rem] overflow-auto">
-    <Table.Root class="relative min-w-max max-w-7xl" width="100vw">
+  <ScrollArea class="relative h-[36rem] overflow-auto">
+    <Table.Root class="relative min-w-max max-w-7xl mb-10" width="100vw">
       <Table.Header class="sticky top-0 z-10 bg-primary-foreground">
         <Table.Row class="border-background">
           <Table.Head class="w-[100px]">Group Id</Table.Head>
           <Table.Head class="w-[200px]">Log Type</Table.Head>
           <Table.Head class="w-44">Value</Table.Head>
-          <Table.Head class="w-[100px]">Assignee</Table.Head>
-          <Table.Head class="w-[200px]">Last Error Timestamp</Table.Head>
+          <Table.Head class="w-44">Assignee</Table.Head>
+          <Table.Head class="w-[200px]">Last Recorded</Table.Head>
+          <Table.Head class="w-[100px]">status</Table.Head>
         </Table.Row>
       </Table.Header>
       <Table.Body>
@@ -206,26 +247,55 @@
                 />
               </p>
             </Table.Cell>
-            <Table.Cell>
+            <Table.Cell class="w-44">
               {@const selectedMember = row.expand ? row.expand.assignee : null}
               <AssignMemberSelect
-                  {members}
-                  selectedMember={selectedMember}
-                  logGroupId={row.id}
-                />
+                {members}
+                {selectedMember}
+                logGroupId={row.id}
+              />
             </Table.Cell>
             <Table.Cell class="font-medium">
-              <ItemContextMenu
-                triggerText={new Date(row.created).toLocaleString()}
-                value={row.latest_seen}
-                rowLabel="created"
-                on:add-filter-query={handleAddFilterQuery}
-              />
+              <Tooltip.Root openDelay={200}>
+                <Tooltip.Trigger asChild let:builder>
+                  <Button builders={[builder]} variant="ghost">
+                    <ItemContextMenu
+                      triggerText={formatTimeAgo(new Date(row.latest_seen))}
+                      value={row.latest_seen}
+                      rowLabel="latest_seen"
+                      on:add-filter-query={handleAddFilterQuery}
+                    />
+                  </Button>
+                </Tooltip.Trigger>
+                <Tooltip.Content>
+                  <p>{new Date(row.latest_seen).toLocaleString()}</p>
+                </Tooltip.Content>
+              </Tooltip.Root>
+            </Table.Cell>
+            {@const { status, variant, tooltip } = getGroupStatus(
+              new Date(row.latest_seen)
+            )}
+            <Table.Cell class="font-medium">
+              <Tooltip.Root openDelay={200}>
+                <Tooltip.Trigger asChild let:builder>
+                  <Button builders={[builder]} variant="none">
+                    <Badge {variant} size="lg" class="rounded">
+                      {status}
+                    </Badge>
+                  </Button>
+                </Tooltip.Trigger>
+                <Tooltip.Content>
+                  <p>{tooltip}</p>
+                </Tooltip.Content>
+              </Tooltip.Root>
             </Table.Cell>
           </Table.Row>
         {/each}
       </Table.Body>
     </Table.Root>
+    <div
+      class="absolute bottom-0 left-0 right-0 h-16 bg-gradient-to-t from-background to-transparent"
+    ></div>
   </ScrollArea>
 {/if}
 
