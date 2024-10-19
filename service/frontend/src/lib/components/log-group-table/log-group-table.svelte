@@ -123,7 +123,7 @@
     members = data;
   }
 
-  function getGroupStatus(latest_seen: Date): {
+  function getGroupStatus(last_seen: Date): {
     status: string;
     variant: "default" | "destructive" | "warning";
     tooltip: string;
@@ -133,7 +133,7 @@
     // if it is seen in the last week, its "warning"
 
     const currentDate = new Date();
-    const timeDiff = currentDate.getTime() - latest_seen.getTime();
+    const timeDiff = currentDate.getTime() - last_seen.getTime();
 
     if (timeDiff > 2629743830) {
       return {
@@ -213,7 +213,7 @@
           <Table.Head class="w-[200px]">Log Type</Table.Head>
           <Table.Head class="w-44">Value</Table.Head>
           <Table.Head class="w-44">Assignee</Table.Head>
-          <Table.Head class="w-[200px]">Last Recorded</Table.Head>
+          <Table.Head class="w-[200px]">Last Seen</Table.Head>
           <Table.Head class="w-[100px]">status</Table.Head>
         </Table.Row>
       </Table.Header>
@@ -260,20 +260,20 @@
                 <Tooltip.Trigger asChild let:builder>
                   <Button builders={[builder]} variant="ghost">
                     <ItemContextMenu
-                      triggerText={formatTimeAgo(new Date(row.latest_seen))}
-                      value={row.latest_seen}
-                      rowLabel="latest_seen"
+                      triggerText={formatTimeAgo(new Date(row.last_seen))}
+                      value={row.last_seen}
+                      rowLabel="last_seen"
                       on:add-filter-query={handleAddFilterQuery}
                     />
                   </Button>
                 </Tooltip.Trigger>
                 <Tooltip.Content>
-                  <p>{new Date(row.latest_seen).toLocaleString()}</p>
+                  <p>{new Date(row.last_seen).toLocaleString()}</p>
                 </Tooltip.Content>
               </Tooltip.Root>
             </Table.Cell>
             {@const { status, variant, tooltip } = getGroupStatus(
-              new Date(row.latest_seen)
+              new Date(row.last_seen)
             )}
             <Table.Cell class="font-medium">
               <Tooltip.Root openDelay={200}>

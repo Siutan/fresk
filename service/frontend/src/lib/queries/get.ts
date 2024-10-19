@@ -48,7 +48,7 @@ const pbGet = {
         .collection("error_group_view")
         .getList(page, perPage, {
           filter: `app="${appId}"`,
-          sort: "-latest_seen",
+          sort: "-last_seen",
         });
       return { data: records, error: null };
     } catch (error) {
@@ -81,7 +81,7 @@ const pbGet = {
       if (sort) {
         options.sort = sort.replace(/"/g, "");
       } else {
-        options.sort = "-latest_seen";
+        options.sort = "-last_seen";
       }
 
       options.expand = "assignee";
