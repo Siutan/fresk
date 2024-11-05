@@ -10,7 +10,6 @@
   import type { Log } from "$lib/types/Log";
   import {
     decodeStacktrace,
-    enhancedDecodeStacktrace,
   } from "$lib/stacktraceHandler";
 
   let log: Log | undefined;
@@ -36,15 +35,11 @@
         thisLog.build
       );
 
-      const enhanced_trace = await enhancedDecodeStacktrace(
-        thisLog.stacktrace,
-        thisLog.build
-      );
-
     } catch (error) {
       console.error("Error decoding stacktrace:", error);
       decoded_stacktrace = thisLog.stacktrace;
     }
+    console.log(thisLog.stacktrace);
 
     log = {
       id: thisLog.id,

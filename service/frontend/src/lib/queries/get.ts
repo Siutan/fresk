@@ -49,6 +49,7 @@ const pbGet = {
         .getList(page, perPage, {
           filter: `app="${appId}"`,
           sort: "-last_seen",
+          expand: "assignee",
         });
       return { data: records, error: null };
     } catch (error) {

@@ -1,5 +1,7 @@
 <script lang="ts">
   import Badge from "$lib/components/ui/badge/badge.svelte";
+  import { createEventDispatcher } from "svelte";
+  import Button from "../ui/button/button.svelte";
 
   export let id: string;
   export let appId: string;
@@ -8,6 +10,8 @@
   export let appEnvironment: string;
   export let logType: string;
   export let time: number;
+
+  const dispatch = createEventDispatcher();
 
   function formatDate(date: number) {
     const dateObject = new Date(date);
@@ -21,6 +25,10 @@
     };
     return dateObject.toLocaleString("en-US", options);
   }
+
+  const handleViewJson = () => {
+    dispatch("viewJson", { id });
+  };
 </script>
 
 <div class="flex justify-between gap-4 w-full p-5">
@@ -29,6 +37,7 @@
     <div class="text-sm text-muted-foreground">
       {formatDate(time)}
     </div>
+    <Button variant="outline" on:click={handleViewJson}>View Raw JSON</Button>
   </div>
   <div class="flex flex-col items-end gap-2">
     <div class="flex items-center gap-2">

@@ -30,6 +30,4 @@ export interface Log extends RecordModel {
   stacktrace: string;
   decoded_stacktrace: string;
   custom: any;
-  created: string;
-  updated: string;
 }

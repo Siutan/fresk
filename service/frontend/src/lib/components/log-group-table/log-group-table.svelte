@@ -213,6 +213,7 @@
           <Table.Head class="w-[200px]">Log Type</Table.Head>
           <Table.Head class="w-44">Value</Table.Head>
           <Table.Head class="w-44">Assignee</Table.Head>
+          <Table.Head class="w-[50px]">Count (24h)</Table.Head>
           <Table.Head class="w-[200px]">Last Seen</Table.Head>
           <Table.Head class="w-[100px]">status</Table.Head>
         </Table.Row>
@@ -254,6 +255,14 @@
                 {selectedMember}
                 logGroupId={row.id}
               />
+            </Table.Cell>
+            <Table.Cell class="font-medium">
+              <ItemContextMenu
+              triggerText={row.last_24h_count}
+              value={row.last_24h_count}
+              rowLabel="last_24h_count"
+              on:add-filter-query={handleAddFilterQuery}
+            />
             </Table.Cell>
             <Table.Cell class="font-medium">
               <Tooltip.Root openDelay={200}>

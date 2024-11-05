@@ -1,6 +1,4 @@
 <script lang="ts">
-  import { Button } from "$lib/components/ui/button";
-
   const operators = [
     { symbol: "=", description: "Equal" },
     { symbol: "!=", description: "NOT equal" },
@@ -26,9 +24,12 @@
 
   <p class="mb-4">
     Filter the returned records. Ex.:
+    <br />
     <code class="bg-gray-700 p-1 rounded"
-      >(id='abc' && created>'2022-01-01')?sort="-created"</code
+      >id='abc' && created>'2022-01-01'?sort="-created"</code
     >
+    Note that the <code class="bg-gray-700 p-1 rounded">?sort</code> parameter should
+    always be at the end of the query.
   </p>
 
   <div class="mt-4">
@@ -38,10 +39,12 @@
       >, where:
     </p>
 
-    <ul class="list-disc pl-6 mb-4">
+    <ul class="list-disc pl-6 mb-4 flex flex-col gap-2">
       <li>
-        <strong>OPERAND</strong> - could be any of the above field literal, string
-        (single or double quoted), number, null, true, false
+        <strong>OPERAND</strong> - could be any of the fields in the log record.
+        Fields separated by a space should be used with an underscore. Ex.:
+        <br />
+        <code class="bg-gray-700 p-1 rounded">id='abc' && last_seen='2022-01-01'</code>
       </li>
       <li><strong>OPERATOR</strong> - is one of:</li>
     </ul>
@@ -55,7 +58,7 @@
       {/each}
     </div>
 
-    <p class="mb-2">Notes:</p>
+    <p class="mb-2 font-bold">Notes:</p>
     <ul class="list-disc pl-6 mb-4">
       <li>
         If not specified, <code class="bg-gray-700 p-1 rounded">~</code> and

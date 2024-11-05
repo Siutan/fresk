@@ -15,8 +15,7 @@
     <Sheet.Header>
       <Sheet.Title>How to filter Logs</Sheet.Title>
       <Sheet.Description>
-        All the logs unfiltered and ordered by creation date. the following
-        filter syntax is supported
+        You can filter logs by using query filters specified below.
       </Sheet.Description>
     </Sheet.Header>
     <ExplainFilter />

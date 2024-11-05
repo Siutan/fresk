@@ -1,24 +1,12 @@
 <script lang="ts">
   import { logStore } from "$lib/stores/logStore";
-  import type { Log } from "$lib/types/Log";
   import { formatTimeAgo } from "$lib/utils";
   import type { RecordModel } from "pocketbase";
   import { ScrollArea } from "./ui/scroll-area";
-  import { page } from "$app/stores";
-  import { browser } from "$app/environment";
 
   export let items: RecordModel[];
 
   const handleSelectLog = (id: string) => {
-    // $page.url.searchParams.set("log", id);
-    // // set the url to the new log
-    // if (browser) {
-    //   window.history.pushState(
-    //     {},
-    //     "",
-    //     `${$page.url.pathname}?page=${$page.url.searchParams.get("page")}&log=${$page.url.searchParams.get("log")}`
-    //   );
-    // }
     logStore.setLog(id);
   };
 </script>
