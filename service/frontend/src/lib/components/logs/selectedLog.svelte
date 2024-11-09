@@ -7,10 +7,10 @@
   import { ScrollArea } from "$lib/components/ui/scroll-area";
   import LogHeader from "./logHeader.svelte";
   import Separator from "$lib/components/ui/separator/separator.svelte";
+  import * as Tabs from "$lib/components/ui/tabs";
+  import { decodeStacktrace } from "$lib/stacktraceHandler";
+
   import type { Log } from "$lib/types/Log";
-  import {
-    decodeStacktrace,
-  } from "$lib/stacktraceHandler";
 
   let log: Log | undefined;
 
@@ -34,61 +34,29 @@
         thisLog.stacktrace,
         thisLog.build
       );
-
     } catch (error) {
       console.error("Error decoding stacktrace:", error);
       decoded_stacktrace = thisLog.stacktrace;
     }
-    console.log(thisLog.stacktrace);
 
     log = {
-      id: thisLog.id,
-      app_id: thisLog.app,
-      build_id: thisLog.build,
-      app_version: thisLog.app_version,
-      app_environment: thisLog.app_environment,
-      log_type: thisLog.log_type,
-      value: thisLog.value,
-      stacktrace: thisLog.stacktrace,
-      decoded_stacktrace: decoded_stacktrace,
-      browser_name: thisLog.browser_name,
-      browser_version: thisLog.browser_version,
-      os_name: thisLog.os_name,
-      os_version: thisLog.os_version,
-      device_type: thisLog.device_type,
-      created: Number.parseInt(thisLog.created),
-      custom: thisLog.custom,
-      language: thisLog.language,
-      memory_usage: thisLog.memory_usage,
-      network_type: thisLog.network_type,
-      page_id: thisLog.page_id,
-      page_url: thisLog.page_url,
-      performance_metrics: thisLog.performance_metrics,
-      referrer: thisLog.referrer,
-      screen_resolution: thisLog.screen_resolution,
-      sdk_version: thisLog.sdk_version,
-      session_email: thisLog.session_email,
-      session_id: thisLog.session_id,
-      time: thisLog.time,
-      time_zone: thisLog.time_zone,
-      updated: Number.parseInt(thisLog.updated),
-      viewport_size: thisLog.viewport_size,
+      ...thisLog,
+      decoded_stacktrace,
     };
 
-    const removeKeys = [
-      "id",
-      "created",
-      "app_id",
-      "app_name",
-      "app_version",
-      "app_environment",
-      "collectionId",
-      "collectionName",
-      "updated",
-    ];
-
+    // Filter out unwanted keys for display
     logDisplay = Object.fromEntries(
-      Object.entries(log).filter(([key]) => !removeKeys.includes(key))
+      Object.entries(log).filter(([key]) => ![
+        'id',
+        'created',
+        'app_id',
+        'app_name', 
+        'app_version',
+        'app_environment',
+        'collectionId',
+        'collectionName',
+        'updated'
+      ].includes(key))
     );
   };
 
@@ -121,11 +89,26 @@
       <Separator />
       <ScrollArea class="h-[80dvh] px-5">
         {#if logDisplay}
-          {#each Object.entries(logDisplay) as [key, value]}
-            <div class="flex items-center justify-between w-full">
-              <LogBlock blockName={key} blockValue={value} />
-            </div>
-          {/each}
+          <Tabs.Root value="structured">
+            <Tabs.List class="grid w-full grid-cols-2">
+              <Tabs.Trigger value="structured">structured</Tabs.Trigger>
+              <Tabs.Trigger value="json">json</Tabs.Trigger>
+            </Tabs.List>
+            <Tabs.Content value="structured">
+              {#each Object.entries(logDisplay) as [key, value]}
+                <div class="flex items-center justify-between w-full">
+                  <LogBlock blockName={key} blockValue={value} />
+                </div>
+              {/each}
+            </Tabs.Content>
+            <Tabs.Content value="json">
+              <pre class="whitespace-pre-wrap break-all">{JSON.stringify(
+                  logDisplay,
+                  null,
+                  2
+                )}</pre>
+            </Tabs.Content>
+          </Tabs.Root>
         {/if}
       </ScrollArea>
     </div>
