@@ -42,21 +42,24 @@
     log = {
       ...thisLog,
       decoded_stacktrace,
-    };
+    } as Log;
 
     // Filter out unwanted keys for display
     logDisplay = Object.fromEntries(
-      Object.entries(log).filter(([key]) => ![
-        'id',
-        'created',
-        'app_id',
-        'app_name', 
-        'app_version',
-        'app_environment',
-        'collectionId',
-        'collectionName',
-        'updated'
-      ].includes(key))
+      Object.entries(log).filter(
+        ([key]) =>
+          ![
+            "id",
+            "created",
+            "app_id",
+            "app_name",
+            "app_version",
+            "app_environment",
+            "collectionId",
+            "collectionName",
+            "updated",
+          ].includes(key)
+      )
     );
   };
 
