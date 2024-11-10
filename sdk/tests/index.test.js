@@ -57,7 +57,6 @@ describe("FreskWebSDK", () => {
     appName: "Test App",
     appVersion: "1.0.0",
     appEnvironment: "test",
-    buildId: "anjqpzt93ict0dx",
   };
   beforeEach(() => {
     // Mock window.fetch
@@ -202,7 +201,6 @@ describe("FreskWebSDK", () => {
       expect.objectContaining({
         app_id: mockConfig.appId,
         app_version: mockConfig.appVersion,
-        build_id: mockConfig.buildId,
         app_environment: mockConfig.appEnvironment,
         log_type: "test",
         value: "Test error",
@@ -212,7 +210,7 @@ describe("FreskWebSDK", () => {
     );
   });
 
-// test("sendError sends error to the server", async () => {
+// test("push-error sends error to the server", async () => {
 //   const errorData = {
 //     message: "Network error occurred",
 //     kind: "network_error",
@@ -224,7 +222,7 @@ describe("FreskWebSDK", () => {
 
 //   // Check if fetch was called with the correct URL and payload
 //   expect(global.fetch).toHaveBeenCalledWith(
-//     `${mockConfig.url}/sendError`,
+//     `${mockConfig.url}/push-error`,
 //     expect.objectContaining({
 //       method: "POST",
 //       headers: {

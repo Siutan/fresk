@@ -65,22 +65,4 @@ export default [
       nodePolyfills(), // Adds polyfills for Node.js APIs
     ],
   },
-  // Configuration for the mod.js
-  {
-    input: "src/mod.js",
-    output: {
-      file: "dist/mod.js",
-      format: "esm", // ES Module format
-    },
-    plugins: [
-      resolve(),
-      commonjs(),
-      babel({
-        babelHelpers: "bundled",
-        exclude: "node_modules/**",
-      }),
-      json(),
-      terser(), // Optional: minify the output
-    ],
-  },
 ];

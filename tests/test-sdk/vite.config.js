@@ -1,6 +1,6 @@
 import { defineConfig } from "vite";
 import { svelte } from "@sveltejs/vite-plugin-svelte";
-import { FreskPluginVite } from "../../sdk/dist/mod";
+import FreskPluginVite from "fresk-web-sdk/dist/vite/";
 // import { FreskPluginVite } from "fresk-web-sdk";
 const prod = process.env.NODE_ENV === "production";
 
@@ -15,7 +15,10 @@ const freskConfig = {
 
 // https://vitejs.dev/config/
 export default defineConfig({
-  plugins: [svelte(), FreskPluginVite(freskConfig)],
+  plugins: [
+    svelte(),
+    FreskPluginVite(freskConfig)
+  ],
   build: {
     sourcemap: "true",
   },

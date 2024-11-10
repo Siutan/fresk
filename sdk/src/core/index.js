@@ -12,8 +12,7 @@ const SDK_VERSION = "0.1.50";
  * @property {string} appName
  * @property {string} appVersion
  * @property {string} appEnvironment
- * @property {string} buildId
- */
+*/
 
 /**
  * @typedef {Object} ErrorData
@@ -30,7 +29,6 @@ const SDK_VERSION = "0.1.50";
  * @typedef {Object} PayloadData
  * @property {string} app_id
  * @property {string} app_version
- * @property {string} build_id
  * @property {string} app_environment
  * @property {string} session_id
  * @property {string} session_email
@@ -68,8 +66,6 @@ class FreskWebSDK {
   appEnvironment;
   /** @type {string} */
   appUrl;
-  /** @type {string} */
-  buildId;
   /** @type {number} */
   retryLimit;
   /** @type {number} */
@@ -96,7 +92,6 @@ class FreskWebSDK {
       : config.url;
     this.appVersion = config.appVersion;
     this.appEnvironment = config.appEnvironment;
-    this.buildId = config.buildId;
 
     this.maxRetries = 5;
     this.retryDelay = 30000;
@@ -445,7 +440,6 @@ class FreskWebSDK {
       ...this.clientInfo,
       app_id: this.appId,
       app_version: this.appVersion,
-      build_id: this.buildId,
       app_environment: this.appEnvironment,
       value: errorData.message,
       stacktrace: errorData.stacktrace || "",
@@ -539,7 +533,7 @@ class FreskWebSDK {
    * @description Send an error to the server
    */
   sendToServer(payload, retryCount) {
-    fetch(`${this.appUrl}/sendError`, {
+    fetch(`${this.appUrl}/push-error`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
