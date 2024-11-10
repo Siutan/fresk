@@ -129,7 +129,7 @@ class FreskWebSDK {
       ? self
       : undefined)
 
-      return (globalObject)?.[`__freskBundleId_Test_App`] || null;
+      return (globalObject)?.[`__freskBundleId_${this.appName}`] || null;
 
   }
 
