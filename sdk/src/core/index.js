@@ -5,14 +5,14 @@ import { parse } from "./parser";
 /**
  * @type {string}
  */
-const SDK_VERSION = "0.3.2"
+const SDK_VERSION = "0.3.3"
 
 /**
  * @typedef {Object} Config
  * @property {string} appId
  * @property {string} appKey
  * @property {string} appName
- * @property {string} url
+ * @property {string} endpoint
  * @property {string} appName
  * @property {string} version
  * @property {string} environment
@@ -74,7 +74,7 @@ class FreskWebSDK {
   /** @type {string} */
   appEnvironment;
   /** @type {string} */
-  appUrl;
+  appEndpoint;
   /** @type {number} */
   retryLimit;
   /** @type {number} */
@@ -98,9 +98,9 @@ class FreskWebSDK {
     this.appName = config.appName;
     this.bundle_id = this.getBundleId();
     this.appKey = config.appKey;
-    this.appUrl = config.url.endsWith("/")
-      ? config.url.slice(0, -1)
-      : config.url;
+    this.appEndpoint = config.endpoint.endsWith("/")
+      ? config.endpoint.slice(0, -1)
+      : config.endpoint;
     this.appVersion = config.version;
     this.appEnvironment = config.environment;
 
@@ -559,7 +559,7 @@ class FreskWebSDK {
    * @description Send an error to the server
    */
   sendToServer(payload, retryCount) {
-    fetch(`${this.appUrl}/error`, {
+    fetch(`${this.appEndpoint}/error`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -763,7 +763,7 @@ class FreskWebSDK {
       session_id: this.getSessionId(),
     });
     this.events = [];
-    fetch(`${this.appUrl}/record`, {
+    fetch(`${this.appEndpoint}/record`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",

@@ -47,13 +47,48 @@ Initialize the SDK in your project:
 const freskSDK = new FreskWebSDK({
   appId: "your_app_id",
   appKey: "your_app_key",
-  url: "your_fresk_server_url",
   appName: "your_app_name",
-  appVersion: "your_app_version",
-  appEnvironment: "your_app_environment",
+  endpoint: "your_fresk_server_url",
+  version: "your_app_version",
+  environment: "your_app_environment",
 });
 
 freskSDK.init();
+```
+
+The recommended way is to create a new instance of the SDK, and then initialise it in your main entry point.
+Then you can use the SDK anywhere in your application by importing it and calling the `identify` or any other method.
+eg.
+```javascript
+// fresk-instance.js
+import FreskWebSDK from "fresk-web-sdk/core";
+
+const freskSDK = new FreskWebSDK({
+  appId: "your_app_id",
+  appKey: "your_app_key",
+  appName: "your_app_name",
+  endpoint: "your_fresk_server_url",
+  version: "your_app_version",
+  environment: "your_app_environment",
+});
+
+export default freskSDK;
+```
+
+```javascript
+// main.js
+import freskSDK from "./fresk-instance.js";
+
+freskSDK.init();
+```
+
+```javascript
+// login.js
+import freskSDK from "./fresk-instance.js";
+
+const afterLogin = (email) => {
+  freskSDK.identify(email);
+};
 ```
 
 ## SSR (Server-Side Rendering)
@@ -74,15 +109,15 @@ Follow these steps to enable source maps:
 import { FreskPluginVite } from "fresk-web-sdk/vite";
 
 const freskConfig = {
-      sdkConfig: {
-        appId: "your_app_id",
-        appKey: "your_app_key",
-        url: "your_fresk_server_url",
-      },
-      sourcemapDir: "path/to/sourcemaps", // optional
-      deleteMapsAfterBuild: true, // optional
+      appId: "your_app_id",
+      appKey: "your_app_key",
+      appName: "your_app_name",
+      endpoint: "your_fresk_server_url",
+      version: "your_app_version",
+      environment: "your_app_environment",
+      verbose: true, // optional
     }
-
+    
 export default defineConfig({
   plugins: [
     FreskPluginVite(freskConfig), // add to vite plugins
