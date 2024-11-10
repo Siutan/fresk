@@ -1,12 +1,12 @@
 {
-  "version": "0.2.5",
+  "version": "0.3.1",
   "name": "fresk-web-sdk",
   "description": "Error reporting and monitoring for web applications",
   "type": "module",
-  "main": "src/core/index.js",
-  "parser": "src/core/parser.js",
-  "vite": "src/vite/index.js",
-  "shared": "src/shared/bundler.js",
+  "main": "core/index.js",
+  "parser": "core/parser.js",
+  "vite": "vite/index.js",
+  "shared": "shared/bundler.js",
   "files": [
     "core",
     "vite",
@@ -30,7 +30,7 @@
     "test": "jest --verbose",
     "build": "rollup -c",
     "prepublishOnly": "bun run build",
-    "postpublish": "mkdir -p dist && mv core dist/core && mv vite dist/vite"
+    "postpublish": "rm -rf dist && mkdir -p dist && mv core dist/core && mv vite dist/vite && mv shared dist/shared"
   },
   "keywords": [
     "fresk"
