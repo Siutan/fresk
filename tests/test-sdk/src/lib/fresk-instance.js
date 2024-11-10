@@ -1,6 +1,6 @@
 // init fresk sdk
-// import FreskWebSDK from "fresk-web-sdk/core";
-import FreskWebSDK from "../../../../sdk/src/core/index.js";
+import FreskWebSDK from "fresk-web-sdk/core";
+// import FreskWebSDK from "../../../../sdk/src/core/index.js";
 
 const freskSDK = new FreskWebSDK({
   appId: "uo8nnevqicasmfu",

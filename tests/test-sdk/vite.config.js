@@ -1,8 +1,8 @@
 import { defineConfig } from "vite";
 import { svelte } from "@sveltejs/vite-plugin-svelte";
 import packageJson from "./package.json" assert { type: "json" };
-// import FreskPluginVite from "fresk-web-sdk/vite/";
-import FreskPluginVite from "../../sdk/src/vite/index.js";
+import FreskPluginVite from "fresk-web-sdk/vite/";
+// import FreskPluginVite from "../../sdk/src/vite/index.js";
 // import { FreskPluginVite } from "fresk-web-sdk";
 const prod = process.env.NODE_ENV === "production";
 
