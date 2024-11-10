@@ -1,5 +1,5 @@
 {
-  "version": "0.3.1",
+  "version": "0.3.2",
   "name": "fresk-web-sdk",
   "description": "Error reporting and monitoring for web applications",
   "type": "module",

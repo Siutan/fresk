@@ -2,7 +2,10 @@ import Bowser from "bowser";
 import * as rrweb from "rrweb";
 import { parse } from "./parser";
 
-const SDK_VERSION = "0.1.51";
+/**
+ * @type {string}
+ */
+const SDK_VERSION = "0.3.2"
 
 /**
  * @typedef {Object} Config
@@ -120,17 +123,17 @@ class FreskWebSDK {
   }
 
   getBundleId() {
-    // get bundle id from window.__freskBundleId_{APPNAME}
-    const globalObject = (typeof globalThis !== 'undefined'
-      ? globalThis
-      : typeof global !== 'undefined'
-      ? global
-      : typeof self !== 'undefined'
-      ? self
-      : undefined)
+    // get bundle id from (global).__freskBundleId_{APPNAME}
+    const globalObject =
+      typeof globalThis !== "undefined"
+        ? globalThis
+        : typeof global !== "undefined"
+        ? global
+        : typeof self !== "undefined"
+        ? self
+        : undefined;
 
-      return (globalObject)?.[`__freskBundleId_${this.appName}`] || null;
-
+    return globalObject?.[`__freskBundleId_${this.appName}`] || null;
   }
 
   init() {
@@ -560,7 +563,7 @@ class FreskWebSDK {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "authorization": `Bearer ${this.appId}:${this.appKey}`
+        authorization: `Bearer ${this.appId}:${this.appKey}`,
       },
       body: JSON.stringify(payload),
     })
