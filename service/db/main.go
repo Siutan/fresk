@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -25,7 +26,13 @@ import (
 
 type sourceMapData struct {
 	FileName string `json:"file_name"`
+	BundleId string `json:"bundleId"`
 	Map      *any   `json:"map"`
+}
+
+type bundleData struct {
+	Version     string `json:"version"`
+	Environment string `json:"environment"`
 }
 
 type Config struct {
@@ -63,7 +70,7 @@ func main() {
 	// Error Handling //
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	app.OnBeforeServe().Add(func(e *core.ServeEvent) error {
-		e.Router.POST("/push-error", func(c echo.Context) error {
+		e.Router.POST("/error", func(c echo.Context) error {
 			// Check for allowed origin
 			origin := c.Request().Header.Get("Origin")
 			if origin == "" {
@@ -75,22 +82,24 @@ func main() {
 				return c.JSON(http.StatusForbidden, map[string]string{"error": "origin not allowed"})
 			}
 			// check the request headers for the x_app_id and the x_app_key
-			appId := c.Request().Header.Get("X-App-Id")
-			appKey := c.Request().Header.Get("X-App-Key")
+			appId, appKey, err := parseAuthHeader(c.Request().Header.Get("Authorization"))
+			if err != nil {
+				return c.JSON(http.StatusBadRequest, map[string]string{"status": "error", "message": "Invalid authorization header: " + err.Error()})
+			}
 
 			if appId == "" || appKey == "" {
-				return c.JSON(http.StatusBadRequest, map[string]string{"status": "error", "message": "no app_id or app_key provided"})
+				return c.JSON(http.StatusBadRequest, map[string]string{"status": "error", "message": "invalid credentials"})
 			}
 
 			// check if the app id and key match an app in the database
 			appRecord, err := app.Dao().FindRecordById("apps", appId)
 			if err != nil {
-				return c.JSON(http.StatusBadRequest, map[string]string{"status": "error", "message": "invalid app_id"})
+				return c.JSON(http.StatusBadRequest, map[string]string{"status": "error", "message": "invalid credentials"})
 			}
 
 			// check if the key matches the one in the app record
 			if appRecord.Get("app_key") != appKey {
-				return c.JSON(http.StatusBadRequest, map[string]string{"status": "error", "message": "invalid app_key"})
+				return c.JSON(http.StatusBadRequest, map[string]string{"status": "error", "message": "invalid credentials"})
 			}
 
 			// Check if the request body exists and the content type is JSON
@@ -135,6 +144,7 @@ func main() {
 			record := models.NewRecord(collection)
 
 			record.Set("app", reqBody.AppID)
+			record.Set("bundle", reqBody.BundleID)
 			record.Set("app_version", reqBody.AppVersion)
 			record.Set("app_environment", reqBody.AppEnvironment)
 			record.Set("session_id", reqBody.SessionID)
@@ -175,11 +185,90 @@ func main() {
 	})
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	// Bundle Handling //
+	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+	app.OnBeforeServe().Add(func(e *core.ServeEvent) error {
+		e.Router.POST("/bundle", func(c echo.Context) error {
+			// Check for allowed origin
+			origin := c.Request().Header.Get("Origin")
+			if origin == "" {
+				origin = c.Request().Header.Get("Referer")
+			}
+
+			// if there are no allowed origins, allow all
+			if len(config.allowedOrigins) > 0 && !isAllowedURL(origin, config.allowedOrigins) {
+				return c.JSON(http.StatusForbidden, map[string]string{"error": "origin not allowed"})
+			}
+			// get appKey and appId from the authorization header. its in the format "Bearer appId:appKey"
+			authHeader := c.Request().Header.Get("Authorization")
+			if authHeader == "" {
+				return c.JSON(http.StatusBadRequest, map[string]string{"status": "error", "message": "Authorization header is missing"})
+			}
+
+			appId, appKey, err := parseAuthHeader(authHeader)
+			if err != nil {
+				return c.JSON(http.StatusBadRequest, map[string]string{"status": "error", "message": "Invalid authorization header: " + err.Error()})
+			}
+
+			if appId == "" || appKey == "" {
+				return c.JSON(http.StatusBadRequest, map[string]string{"status": "error", "message": "invalid credentials"})
+			}
+
+			// check if the app id and key match an app in the database
+			appRecord, err := app.Dao().FindRecordById("apps", appId)
+			if err != nil {
+				return c.JSON(http.StatusBadRequest, map[string]string{"status": "error", "message": "invalid credentials"})
+			}
+
+			// check if the key matches the one in the app record
+			if appRecord.Get("app_key") != appKey {
+				return c.JSON(http.StatusBadRequest, map[string]string{"status": "error", "message": "invalid credentials"})
+			}
+
+			// Check if the request body exists and the content type is JSON
+			if c.Request().Body == nil {
+				return c.JSON(http.StatusBadRequest, map[string]string{"status": "error", "message": "Request body is empty"})
+			}
+			contentType := c.Request().Header.Get("Content-Type")
+			if contentType != "application/json" {
+				return c.JSON(http.StatusBadRequest, map[string]string{"status": "error", "message": "Content type is not JSON"})
+			}
+
+			reqBody := new(bundleData)
+
+			if err := c.Bind(reqBody); err != nil {
+				return c.JSON(http.StatusBadRequest, map[string]string{"status": "error", "message": "Invalid request body: " + err.Error()})
+			}
+
+			// create a new bundle with the provided version and environment
+			collection, err := app.Dao().FindCollectionByNameOrId("bundles")
+			if err != nil {
+				return c.JSON(http.StatusInternalServerError, map[string]string{"status": "error", "message": "Error finding collection: " + err.Error()})
+			}
+
+			record := models.NewRecord(collection)
+
+			record.Set("app", appId)
+			record.Set("version", reqBody.Version)
+			record.Set("environment", reqBody.Environment)
+
+			if err := app.Dao().SaveRecord(record); err != nil {
+				return c.JSON(http.StatusInternalServerError, map[string]string{"status": "error", "message": "Error saving bundle: " + err.Error()})
+			}
+
+			// return the bundle id
+			return c.JSON(http.StatusOK, map[string]string{"status": "ok", "bundle_id": record.Id})
+		})
+		return nil
+	})
+
+	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	// Source Map Handling //
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 	app.OnBeforeServe().Add(func(e *core.ServeEvent) error {
-		e.Router.POST("/push-source-map", func(c echo.Context) error {
+		e.Router.POST("/sourcemap", func(c echo.Context) error {
 			// Check for allowed origin
 			origin := c.Request().Header.Get("Origin")
 			if origin == "" {
@@ -191,22 +280,20 @@ func main() {
 				return c.JSON(http.StatusForbidden, map[string]string{"error": "origin not allowed"})
 			}
 			// check the request headers for the x_app_id and the x_app_key
-			appId := c.Request().Header.Get("X-App-Id")
-			appKey := c.Request().Header.Get("X-App-Key")
-
-			if appId == "" || appKey == "" {
-				return c.JSON(http.StatusBadRequest, map[string]string{"status": "error", "message": "no app_id or app_key provided"})
+			appId, appKey, err := parseAuthHeader(c.Request().Header.Get("Authorization"))
+			if err != nil {
+				return c.JSON(http.StatusBadRequest, map[string]string{"status": "error", "message": "Invalid authorization header: " + err.Error()})
 			}
 
 			// check if the app id and key match an app in the database
 			appRecord, err := app.Dao().FindRecordById("apps", appId)
 			if err != nil {
-				return c.JSON(http.StatusBadRequest, map[string]string{"status": "error", "message": "invalid app_id"})
+				return c.JSON(http.StatusBadRequest, map[string]string{"status": "error", "message": "invalid credentials"})
 			}
 
 			// check if the key matches the one in the app record
 			if appRecord.Get("app_key") != appKey {
-				return c.JSON(http.StatusBadRequest, map[string]string{"status": "error", "message": "invalid app_key"})
+				return c.JSON(http.StatusBadRequest, map[string]string{"status": "error", "message": "invalid credentials"})
 			}
 
 			// Check if the request body exists and the content type is JSON
@@ -219,6 +306,7 @@ func main() {
 			}
 
 			reqBody := new(sourceMapData)
+			println(reqBody)
 
 			if err := c.Bind(reqBody); err != nil {
 				return c.JSON(http.StatusBadRequest, map[string]string{"status": "error", "message": "Invalid request body: " + err.Error()})
@@ -235,20 +323,10 @@ func main() {
 				return c.JSON(http.StatusInternalServerError, map[string]string{"status": "error", "message": "Error finding collection: " + err.Error()})
 			}
 
-			// check if map exists
-			appRecord, err = app.Dao().FindRecordById("sourcemaps", reqBody.FileName)
-			if err != nil {
-				return c.JSON(http.StatusInternalServerError, map[string]string{"status": "error", "message": "Error finding source map: " + err.Error()})
-			}
-
-			// if the map exists, skip saving it
-			if appRecord != nil {
-				return c.JSON(http.StatusOK, map[string]string{"status": "ok", "message": "Source map already exists"})
-			}
-
 			record := models.NewRecord(collection)
 
 			record.Set("app", appId)
+			record.Set("bundle", reqBody.BundleId)
 			record.Set("file_name", reqBody.FileName)
 			record.Set("map", reqBody.Map)
 
@@ -354,6 +432,25 @@ func main() {
 	}
 }
 
+func parseAuthHeader(authHeader string) (string, string, error) {
+	// split the header into parts
+	parts := strings.Split(authHeader, " ")
+
+	if len(parts) != 2 {
+		return "", "", fmt.Errorf("invalid authorization header format")
+	}
+
+	// split the appId and appKey
+	credentials := strings.Split(parts[1], ":")
+	if len(credentials) != 2 {
+		return "", "", fmt.Errorf("invalid credentials format")
+	}
+	appId := credentials[0]
+	appKey := credentials[1]
+
+	return appId, appKey, nil
+}
+
 func FindAllUsers(dao *daos.Dao) ([]*models.Record, error) {
 	query := dao.RecordQuery("users")
 
@@ -368,7 +465,7 @@ func FindAllUsers(dao *daos.Dao) ([]*models.Record, error) {
 // checkRequiredFields checks if the required fields are present in the requestBody struct.
 func checkRequiredFields(reqBody types.RequestBody) []string {
 	var missingFields []string
-	var optionalFields []string = []string{"session_email", "referrer", "performance_metrics", "memory_usage", "custom", "stacktrace"}
+	var optionalFields []string = []string{"session_email", "referrer", "performance_metrics", "memory_usage", "custom", "stacktrace", "bundle", "bundle_id"}
 
 	v := reflect.ValueOf(reqBody)
 	typeOfS := v.Type()
@@ -381,7 +478,7 @@ func checkRequiredFields(reqBody types.RequestBody) []string {
 			continue
 		}
 
-		// Only check fields marked as required, except for session_email
+		// Only check fields marked as required
 		if !field.IsValid() || isEmptyValue(field) {
 			if tag != "" {
 				missingFields = append(missingFields, tag)

@@ -2,17 +2,18 @@ import Bowser from "bowser";
 import * as rrweb from "rrweb";
 import { parse } from "./parser";
 
-const SDK_VERSION = "0.1.50";
+const SDK_VERSION = "0.1.51";
 
 /**
  * @typedef {Object} Config
  * @property {string} appId
  * @property {string} appKey
+ * @property {string} appName
  * @property {string} url
  * @property {string} appName
- * @property {string} appVersion
- * @property {string} appEnvironment
-*/
+ * @property {string} version
+ * @property {string} environment
+ */
 
 /**
  * @typedef {Object} ErrorData
@@ -28,6 +29,7 @@ const SDK_VERSION = "0.1.50";
 /**
  * @typedef {Object} PayloadData
  * @property {string} app_id
+ * @property {string} bundle_id
  * @property {string} app_version
  * @property {string} app_environment
  * @property {string} session_id
@@ -61,6 +63,10 @@ class FreskWebSDK {
   /** @type {string} */
   appKey;
   /** @type {string} */
+  appName;
+  /** @type {string} */
+  bundle_id;
+  /** @type {string} */
   appVersion;
   /** @type {string} */
   appEnvironment;
@@ -86,12 +92,14 @@ class FreskWebSDK {
     }
 
     this.appId = config.appId;
+    this.appName = config.appName;
+    this.bundle_id = this.getBundleId();
     this.appKey = config.appKey;
     this.appUrl = config.url.endsWith("/")
       ? config.url.slice(0, -1)
       : config.url;
-    this.appVersion = config.appVersion;
-    this.appEnvironment = config.appEnvironment;
+    this.appVersion = config.version;
+    this.appEnvironment = config.environment;
 
     this.maxRetries = 5;
     this.retryDelay = 30000;
@@ -111,6 +119,20 @@ class FreskWebSDK {
     this.events = [];
   }
 
+  getBundleId() {
+    // get bundle id from window.__freskBundleId_{APPNAME}
+    const globalObject = (typeof globalThis !== 'undefined'
+      ? globalThis
+      : typeof global !== 'undefined'
+      ? global
+      : typeof self !== 'undefined'
+      ? self
+      : undefined)
+
+      return (globalObject)?.[`__freskBundleId_Test_App`] || null;
+
+  }
+
   init() {
     this.hookErrors();
     this.hookUnhandledRejections();
@@ -119,7 +141,7 @@ class FreskWebSDK {
     this.wrapFetch();
     this.captureClientInfo();
     this.startPerformanceMonitoring();
-    
+
     // disabling recording for now, maybe we can come back to it later
     // this.startRecording();
   }
@@ -439,6 +461,7 @@ class FreskWebSDK {
     return {
       ...this.clientInfo,
       app_id: this.appId,
+      bundle_id: this.bundle_id || null,
       app_version: this.appVersion,
       app_environment: this.appEnvironment,
       value: errorData.message,
@@ -533,12 +556,11 @@ class FreskWebSDK {
    * @description Send an error to the server
    */
   sendToServer(payload, retryCount) {
-    fetch(`${this.appUrl}/push-error`, {
+    fetch(`${this.appUrl}/error`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "X-App-Id": this.appId,
-        "X-App-Key": this.appKey,
+        "authorization": `Bearer ${this.appId}:${this.appKey}`
       },
       body: JSON.stringify(payload),
     })
@@ -733,7 +755,10 @@ class FreskWebSDK {
       console.debug("No events to save");
       return;
     }
-    const body = JSON.stringify({ events: this.events, session_id: this.getSessionId() });
+    const body = JSON.stringify({
+      events: this.events,
+      session_id: this.getSessionId(),
+    });
     this.events = [];
     fetch(`${this.appUrl}/record`, {
       method: "POST",
@@ -744,7 +769,7 @@ class FreskWebSDK {
       },
       body,
     });
-  }
+  };
 }
 
 export default FreskWebSDK;

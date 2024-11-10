@@ -2,67 +2,60 @@ import resolve from "@rollup/plugin-node-resolve";
 import commonjs from "@rollup/plugin-commonjs";
 import babel from "@rollup/plugin-babel";
 import json from "@rollup/plugin-json";
-import { terser } from "rollup-plugin-terser";
-import nodePolyfills from "rollup-plugin-polyfill-node";
+//import { terser } from "rollup-plugin-terser";
+//import nodePolyfills from "rollup-plugin-polyfill-node";
+import packageJson from "./package.json" assert { type: "json" };
+
+const extensions = [".js"];
 
 export default [
   // configuration for the parser
   {
     input: "src/core/parser.js",
-    output: {
-      file: "dist/core/parser.js",
-      format: "esm", // Immediately Invoked Function Expression
-    },
-    plugins: [
-      resolve(),
-      commonjs(),
-      babel({
-        babelHelpers: "bundled",
-        exclude: "node_modules/**",
-      }),
-      json(),
-      terser(), // Optional: minify the output
-      nodePolyfills(), // Adds polyfills for Node.js APIs
+    external: [...Object.keys(packageJson.dependencies)],
+    output: [
+      {
+        file: packageJson.main,
+        format: "esm",
+        exports: "named",
+        sourcemap: true,
+      },
+      {
+        file: packageJson.parser,
+        format: "esm",
+        name: "FreskWebSDK", // Global variable name for the core SDK
+        exports: "named",
+        sourcemap: true,
+      },
+      {
+        file: packageJson.vite,
+        format: "esm",
+        exports: "named",
+        sourcemap: true,
+      },
+      {
+        file: packageJson.shared,
+        format: "esm",
+        exports: "named",
+        sourcemap: true,
+      },
     ],
-  },
-  // Configuration for the core SDK
-  {
-    input: "src/core/index.js",
-    output: {
-      file: "dist/core/index.js",
-      format: "esm", // Immediately Invoked Function Expression
-      name: "FreskWebSDK", // Global variable name for the core SDK
-    },
     plugins: [
-      resolve(),
-      commonjs(),
       babel({
+        extensions,
         babelHelpers: "bundled",
-        exclude: "node_modules/**",
+        include: ["src/**/*"],
+        exclude: [/node_modules/, /test/],
       }),
       json(),
-      terser(), // Optional: minify the output
-      nodePolyfills(), // Adds polyfills for Node.js APIs
-    ],
-  },
-  // Configuration for the Vite plugin
-  {
-    input: "src/vite/index.js",
-    output: {
-      file: "dist/vite/index.js",
-      format: "esm", // CommonJS, suitable for Node.js
-      exports: "named",
-    },
-    plugins: [
-      resolve(),
-      commonjs(),
-      babel({
-        babelHelpers: "bundled",
-        exclude: "node_modules/**",
+      resolve({
+        extensions,
+        rootDir: "./src",
+        preferBuiltins: true,
       }),
-      json(),
-      terser(), // Optional: minify the output
-      nodePolyfills(), // Adds polyfills for Node.js APIs
+      commonjs({
+        include: /node_modules/,
+      }),
     ],
   },
 ];

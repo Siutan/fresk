@@ -40,6 +40,7 @@ type RequestBody struct {
 	MemoryUsage        int                `json:"memory_usage"`        	// required
 	NetworkType        string             `json:"network_type"`        	// required
 	AppID              string             `json:"app_id"`             	// required
+	BundleID           string             `json:"bundle_id"`           	// required
 	AppVersion         string             `json:"app_version"`        	// required
 	AppEnvironment     string             `json:"app_environment"`    	// required
 	LogType            string             `json:"log_type"`           	// required
