@@ -9,7 +9,7 @@
     const trace = await enhancedDecodeStacktrace(
         //@ts-ignore <I know I typed this as a string, but it's a stackframe array>
       currentError.stacktrace,
-      currentError.build
+      currentError.app_id
     );
 
     return trace;

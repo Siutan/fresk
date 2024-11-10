@@ -23,12 +23,7 @@ import (
 	"github.com/pocketbase/pocketbase/core"
 )
 
-type buildData struct {
-	AppVersion string `json:"app_version"`
-}
-
 type sourceMapData struct {
-	BuildID  string `json:"build_id"`
 	FileName string `json:"file_name"`
 	Map      *any   `json:"map"`
 }
@@ -68,7 +63,7 @@ func main() {
 	// Error Handling //
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	app.OnBeforeServe().Add(func(e *core.ServeEvent) error {
-		e.Router.POST("/sendError", func(c echo.Context) error {
+		e.Router.POST("/push-error", func(c echo.Context) error {
 			// Check for allowed origin
 			origin := c.Request().Header.Get("Origin")
 			if origin == "" {
@@ -141,7 +136,6 @@ func main() {
 
 			record.Set("app", reqBody.AppID)
 			record.Set("app_version", reqBody.AppVersion)
-			record.Set("build", reqBody.BuildID)
 			record.Set("app_environment", reqBody.AppEnvironment)
 			record.Set("session_id", reqBody.SessionID)
 			record.Set("session_email", reqBody.SessionEmail)
@@ -181,87 +175,11 @@ func main() {
 	})
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-	// Build Handling //
-	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-	
-	app.OnBeforeServe().Add(func(e *core.ServeEvent) error {
-		e.Router.POST("/createBuild", func(c echo.Context) error {
-			// Check for allowed origin
-			origin := c.Request().Header.Get("Origin")
-			if origin == "" {
-				origin = c.Request().Header.Get("Referer")
-			}
-
-			// if there are no allowed origins, allow all
-			if len(config.allowedOrigins) > 0 && !isAllowedURL(origin, config.allowedOrigins) {
-				return c.JSON(http.StatusForbidden, map[string]string{"error": "origin not allowed"})
-			}
-			// check the request headers for the x_app_id and the x_app_key
-			appId := c.Request().Header.Get("X-App-Id")
-			appKey := c.Request().Header.Get("X-App-Key")
-
-			if appId == "" || appKey == "" {
-				return c.JSON(http.StatusBadRequest, map[string]string{"status": "error", "message": "no app_id or app_key provided"})
-			}
-
-			// check if the app id and key match an app in the database
-			appRecord, err := app.Dao().FindRecordById("apps", appId)
-			if err != nil {
-				return c.JSON(http.StatusBadRequest, map[string]string{"status": "error", "message": "invalid app_id"})
-			}
-
-			// check if the key matches the one in the app record
-			if appRecord.Get("app_key") != appKey {
-				return c.JSON(http.StatusBadRequest, map[string]string{"status": "error", "message": "invalid app_key"})
-			}
-
-			// Check if the request body exists and the content type is JSON
-			if c.Request().Body == nil {
-				return c.JSON(http.StatusBadRequest, map[string]string{"status": "error", "message": "Request body is empty"})
-			}
-			contentType := c.Request().Header.Get("Content-Type")
-			if contentType != "application/json" {
-				return c.JSON(http.StatusBadRequest, map[string]string{"status": "error", "message": "Content type is not JSON"})
-			}
-
-			reqBody := new(buildData)
-
-			if err := c.Bind(reqBody); err != nil {
-				return c.JSON(http.StatusBadRequest, map[string]string{"status": "error", "message": "Invalid request body: " + err.Error()})
-			}
-
-			// Check if app_version is empty
-			if reqBody.AppVersion == "" {
-				return c.JSON(http.StatusBadRequest, map[string]string{"status": "error", "message": "App version is empty"})
-			}
-
-			// add the data to a record
-			collection, err := app.Dao().FindCollectionByNameOrId("builds")
-			if err != nil {
-				return c.JSON(http.StatusInternalServerError, map[string]string{"status": "error", "message": "Error finding collection: " + err.Error()})
-			}
-
-			record := models.NewRecord(collection)
-
-			record.Set("app", appId)
-			record.Set("app_version", reqBody.AppVersion)
-
-			if err := app.Dao().SaveRecord(record); err != nil {
-				return c.JSON(http.StatusInternalServerError, map[string]string{"status": "error", "message": "Error saving build: " + err.Error()})
-			}
-
-			return c.JSON(http.StatusOK, map[string]string{"status": "ok", "build_id": record.Id})
-		})
-
-		return nil
-	})
-
-	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	// Source Map Handling //
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 	app.OnBeforeServe().Add(func(e *core.ServeEvent) error {
-		e.Router.POST("/addSourceMap", func(c echo.Context) error {
+		e.Router.POST("/push-source-map", func(c echo.Context) error {
 			// Check for allowed origin
 			origin := c.Request().Header.Get("Origin")
 			if origin == "" {
@@ -317,10 +235,20 @@ func main() {
 				return c.JSON(http.StatusInternalServerError, map[string]string{"status": "error", "message": "Error finding collection: " + err.Error()})
 			}
 
+			// check if map exists
+			appRecord, err = app.Dao().FindRecordById("sourcemaps", reqBody.FileName)
+			if err != nil {
+				return c.JSON(http.StatusInternalServerError, map[string]string{"status": "error", "message": "Error finding source map: " + err.Error()})
+			}
+
+			// if the map exists, skip saving it
+			if appRecord != nil {
+				return c.JSON(http.StatusOK, map[string]string{"status": "ok", "message": "Source map already exists"})
+			}
+
 			record := models.NewRecord(collection)
 
 			record.Set("app", appId)
-			record.Set("build", reqBody.BuildID)
 			record.Set("file_name", reqBody.FileName)
 			record.Set("map", reqBody.Map)
 
@@ -377,8 +305,6 @@ func main() {
 				return c.JSON(http.StatusBadRequest, map[string]string{"status": "error", "message": "Content type is not JSON"})
 			}
 
-			
-
 			return c.JSON(http.StatusOK, map[string]string{"status": "ok", "message": "Recording started successfully"})
 
 		})
@@ -413,15 +339,13 @@ func main() {
 
 		// set email visibility
 		e.Record.Set("email_visibility", true)
-		
+
 		return nil
 	})
 
 	isGoRun := strings.HasPrefix(os.Args[0], os.TempDir())
 
 	migratecmd.MustRegister(app, app.RootCmd, migratecmd.Config{
-		// enable auto creation of migration files when making collection changes in the Admin UI
-		// (the isGoRun check is to enable it only during development)
 		Automigrate: isGoRun,
 	})
 

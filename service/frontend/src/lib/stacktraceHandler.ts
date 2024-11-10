@@ -61,7 +61,7 @@ function parseStackTrace(stackframes: StackFrame[]): StackTrace {
 
 async function fetchSourceMaps(
   fileNames: string[],
-  buildId: string
+  appId: string
 ): Promise<SourceMap[]> {
   const sourceMaps: SourceMap[] = [];
 
@@ -69,7 +69,7 @@ async function fetchSourceMaps(
     const mapFile = `${fileName.split("/").pop()}.map`;
     try {
       const { data: sourceMapRecord, error } =
-        await pbGet.getSourceMapByFileName(mapFile, buildId);
+        await pbGet.getSourceMapByFileName(mapFile, appId);
       if (error || !sourceMapRecord) {
         console.warn(
           `Failed to fetch source map for ${mapFile}: ${
@@ -206,14 +206,14 @@ function extractCodeFromSourceMap(
 
 async function decodeStacktrace(
   stackframes: StackFrame[],
-  buildId: string
+  appId: string
 ): Promise<string> {
   try {
     console.log(stackframes);
     const parsedStackTrace = parseStackTrace(stackframes);
     const sourceMaps = await fetchSourceMaps(
       parsedStackTrace.fileNames,
-      buildId
+      appId
     );
     return transform(sourceMaps, parsedStackTrace);
   } catch (error) {
@@ -262,13 +262,13 @@ function formatCodeContext(
 
 async function enhancedDecodeStacktrace(
   stackframes: StackFrame[],
-  buildId: string
+  appId: string
 ): Promise<EnhancedStacktraceResult> {
   try {
     const parsedStackTrace = parseStackTrace(stackframes);
     const sourceMaps = await fetchSourceMaps(
       parsedStackTrace.fileNames,
-      buildId
+      appId
     );
     const decodedStacktrace = transform(sourceMaps, parsedStackTrace);
 

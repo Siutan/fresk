@@ -202,11 +202,11 @@ const pbGet = {
       return { data: null, error };
     }
   },
-  getSourceMapByFileName: async (name: string, buildId: string) => {
+  getSourceMapByFileName: async (name: string, appId: string) => {
     try {
       const record = await pb
         .collection("sourcemaps")
-        .getFirstListItem(`build="${buildId}" && file_name~"%${name}"`);
+        .getFirstListItem(`build="${appId}" && file_name~"%${name}"`);
       return { data: record, error: null };
     } catch (error) {
       console.error("error", error);

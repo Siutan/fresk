@@ -41,7 +41,6 @@ type RequestBody struct {
 	NetworkType        string             `json:"network_type"`        	// required
 	AppID              string             `json:"app_id"`             	// required
 	AppVersion         string             `json:"app_version"`        	// required
-	BuildID            string             `json:"build_id"`           	// required
 	AppEnvironment     string             `json:"app_environment"`    	// required
 	LogType            string             `json:"log_type"`           	// required
 	SessionID          string             `json:"session_id"`         	// required

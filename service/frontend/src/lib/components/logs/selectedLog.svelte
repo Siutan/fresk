@@ -18,7 +18,10 @@
   let appDetails: any;
 
   const fetchLog = async (id: string) => {
-    const { data: thisLog, error } = await pbGet.getLogById(id);
+    const { data: thisLog, error } = (await pbGet.getLogById(id)) as {
+      data: Log;
+      error: any;
+    };
     if (error || !thisLog) return;
 
     const { data: app, error: appError } = await pbGet.getAppById(
@@ -31,8 +34,9 @@
     let decoded_stacktrace;
     try {
       decoded_stacktrace = await decodeStacktrace(
-        thisLog.stacktrace,
-        thisLog.build
+        // appease typescript
+        thisLog.stacktrace as any,
+        thisLog.app_id
       );
     } catch (error) {
       console.error("Error decoding stacktrace:", error);
