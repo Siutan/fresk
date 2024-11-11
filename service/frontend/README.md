@@ -1,38 +1,28 @@
-# create-svelte
+# Fresk Dashboard
 
-Everything you need to build a Svelte project, powered by [`create-svelte`](https://github.com/sveltejs/kit/tree/main/packages/create-svelte).
+This is the source code for the Fresk dashboard, which is a web application that allows you to view and manage your Fresk service.
 
-## Creating a project
+The dashboard is built using SvelteKit.
 
-If you're seeing this, you've probably already done this step. Congrats!
+## Getting Started
 
-```bash
-# create a new project in the current directory
-npm create svelte@latest
-
-# create a new project in my-app
-npm create svelte@latest my-app
-```
-
-## Developing
-
-Once you've created a project and installed dependencies with `npm install` (or `pnpm install` or `yarn`), start a development server:
+Before you start using the dashboard, you need to have a running Fresk service.
+refer to the pocketbase service in [service/db](https://github.com/Siutan/fresk/tree/main/service/db) for more information.
+Once you have a running Fresk service, you can start the dashboard by running the following command:
 
 ```bash
-npm run dev
-
-# or start the server and open the app in a new browser tab
-npm run dev -- --open
+bun dev
 ```
 
-## Building
+This will start the dashboard on http://localhost:5173.
 
-To create a production version of your app:
 
-```bash
-npm run build
-```
+## Features
 
-You can preview the production build with `npm run preview`.
-
-> To deploy your app, you may need to install an [adapter](https://kit.svelte.dev/docs/adapters) for your target environment.
+- View and manage your Fresk service
+- View and manage your error groups
+- View and manage your errors
+- View and manage your sourcemaps
+- View and manage your integrations
+- View and manage your sessions
+- View and manage your users
