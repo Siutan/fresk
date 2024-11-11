@@ -18,7 +18,7 @@ import { ansi256 } from "ansis";
 export const createBundle = async (options) => {
   const { appKey, appId, endpoint, version, environment, verbose } = options;
 
-  verbose && consoleInfoBlue(`Creating bundle`);
+  verbose && consoleInfo(`Creating bundle`);
   const response = await fetch(`${endpoint}/bundle`, {
     method: "POST",
     headers: {
@@ -32,7 +32,7 @@ export const createBundle = async (options) => {
   });
 
   if (!response.ok) {
-    consoleInfoBlue(
+    consoleInfo(
       `Failed to create bundle: ${version} with status: ${response.status}`
     );
     return null;
@@ -42,7 +42,7 @@ export const createBundle = async (options) => {
   const body = await response.json();
 
   if (options.verbose) {
-    consoleInfoBlue(`Created bundle: ${body.bundle_id}`);
+    consoleInfo(`Created bundle: ${body.bundle_id}`);
   }
 
   return body.bundle_id;
@@ -57,13 +57,15 @@ export const createBundle = async (options) => {
  * @param {string} options.appId - The application ID for authentication.
  * @param {boolean} options.verbose - Whether to log verbose output.
  * @param {string} options.filename - The name of the source map file.
+ * @param {string} options.filePath - The path to the source map file.
+ * @param {string} options.bundleId - The bundle ID of the application.
  * @returns {Promise<boolean>} - Returns true if the upload was successful, false otherwise.
  */
 export const uploadSourceMap = async (options) => {
   const { appKey, appId, endpoint, verbose, filename, filePath, bundleId } =
     options;
   let success = true;
-  verbose && consoleInfoBlue(`Uploading ${filename} to Fresk server`);
+  verbose && consoleInfo(`Uploading ${filename} to Fresk server`);
   const response = await fetch(`${endpoint}/sourcemap`, {
     method: "POST",
     headers: {
@@ -81,13 +83,13 @@ export const uploadSourceMap = async (options) => {
     const data = await response.json();
     console.error(data);
     success = false;
-    consoleInfoBlue(
+    consoleInfo(
       `Failed to upload source map: ${filename} with status: ${response.status}`
     );
   }
 
   if (options.verbose) {
-    consoleInfoBlue(`Uploaded ${filename} to Fresk server`);
+    consoleInfo(`Uploaded ${filename} to Fresk server`);
   }
 
   return success;
@@ -106,27 +108,17 @@ export const freskBundleIdSnippet = (bundleId, appName) => {
 };
 
 /**
- * Generates a random string of the specified length.
- *
- * @param {number} [length=10] - The length of the random string to generate.
- * @returns {string} - The generated random string.
- */
-export function randomString(length) {
-  return crypto.randomBytes(length ?? 10).toString("hex");
-}
-
-/**
  * Logs a message to the console with a blue color.
  *
  * @param {string} message - The message to log.
  */
-export const consoleInfoBlue = (message) =>
+export const consoleInfo = (message) =>
   console.info(ansi256(24)`[FRESK] ${message}`);
 
 /**
- * Constant representing thirty megabytes in bytes.
- * @type {number}
+ * Logs an error to the console with a blue color.
+ *
+ * @param {string} message - The message to log.
  */
-export const THIRTY_MB_IN_BYTES = 30 * 1024 * 1024;
-
-crypto.randomUUID();
+export const consoleError = (message) =>
+  console.error(ansi256(31)`[FRESK] ${message}`);

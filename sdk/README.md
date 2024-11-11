@@ -99,7 +99,7 @@ Support for SSR is planned for a future release.
 ## Source Maps
 
 You can configure the SDK to send source maps to the Fresk server for improved debugging experience.
-Currently we only support Vite, but we plan to support other frameworks in the future.
+Currently we only support Rollup/Vite, but we plan to support other frameworks in the future.
 
 Follow these steps to enable source maps:
 
@@ -124,6 +124,23 @@ export default defineConfig({
   ],
 });
 
+```
+
+2. In your `vite.config.js` file, enable source maps:
+
+```javascript
+
+...
+
+export default defineConfig({
+  plugins: [
+    FreskPluginVite(freskConfig), // add to vite plugins
+  ],
+  // enable sourcemaps
+  build: {
+    sourcemap: "true",
+  },
+});
 ```
 Then when you build, it will send the source maps to the Fresk server.
 

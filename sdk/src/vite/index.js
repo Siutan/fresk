@@ -1,130 +1,202 @@
 import MagicString from "magic-string";
-
+import { promises as fs } from 'fs';
+import path from 'path';
 import {
   freskBundleIdSnippet,
   createBundle,
-  consoleInfoBlue,
+  consoleInfo,
+  consoleError,
   uploadSourceMap,
 } from "../shared/bundler";
+
+const FILE_EXTENSION_REGEX = /\.(js|ts|jsx|tsx|mjs|cjs)$/;
+
 /**
- * @param {FreskPluginOptions} pluginOptions - The options for the Fresk plugin.
+ * @typedef {Object} FreskPluginOptions
  * @property {string} appId - The application ID for authentication.
  * @property {string} appKey - The application key for authentication.
  * @property {string} appName - The name of the application.
  * @property {string} endpoint - The endpoint to upload the bundle to.
- * @property {string} [environment] - The environment (e.g., production, staging, development, etc).
+ * @property {string} [environment] - The environment (e.g., production, staging, development).
  * @property {string} [version] - The version of the app.
  * @property {string[]} [outputFiles] - The list of output files.
- * @property {boolean} [deleteMapsAfterBuild] - Whether to delete source maps after the build.
+ * @property {boolean} [deleteMapsAfterBuild] - Whether to delete source maps after build.
  * @property {boolean} [verbose] - Whether to log verbose output.
- * @returns {Promise<Plugin>}
+ */
+
+/**
+ * Validates required plugin options
+ * @param {FreskPluginOptions} options 
+ * @throws {Error} If required options are missing
+ */
+function validateOptions(options) {
+  const required = ['appId', 'appKey', 'appName', 'endpoint'];
+  const missing = required.filter(key => !options[key]);
+  
+  if (missing.length > 0) {
+    throw new Error(`Missing required options: ${missing.join(', ')}`);
+  }
+}
+
+/**
+ * Creates a Vite plugin for Fresk source map handling
+ * @param {FreskPluginOptions} pluginOptions
+ * @returns {Promise<import('vite').Plugin>}
  */
 export default async function freskPlugin(pluginOptions) {
+  validateOptions(pluginOptions);
+
   const {
     endpoint,
     appId,
     appKey,
     appName,
-    environment,
-    version,
-    deleteMapsAfterBuild,
-    outputFiles,
-    verbose,
+    environment = 'PROD',
+    version = 'unknown',
+    deleteMapsAfterBuild = false,
+    outputFiles = [],
+    verbose = false,
   } = pluginOptions;
+
+  // Return a no-op plugin in development
   if (environment === "development") {
-    consoleInfoBlue("Sourcemaps and/or bundles are not created in development");
-    return;
+    consoleInfo("Sourcemaps and/or bundles are not created in development");
+    return {
+      name: "vite-plugin-fresk",
+      renderChunk: () => null,
+      writeBundle: () => Promise.resolve(),
+    };
   }
+
   const bundleId = await createBundle({
     appId,
     appKey,
     endpoint,
-    environment: environment ? environment : "PROD",
+    environment,
     verbose,
-    version: version ? version : "unknown",
+    version,
   });
+
   if (!bundleId) {
-    consoleInfoBlue("Failed to create bundle, ternimating upload.");
-    return;
+    throw new Error("Failed to create bundle");
   }
+
+  const uploadedMaps = new Set();
 
   return {
     name: "vite-plugin-fresk",
-    /**
-     * Renders a chunk of code and generates a source map with a bundleId code snippet injected at the end.
-     * @param code The original code of the chunk.
-     * @param chunk The chunk object containing information about the file.
-     * @returns An object with the rendered code and the generated source map, or null if the chunk's file extension does not match the patterns.
-     */
+    
     renderChunk(code, chunk) {
-      verbose ?? consoleInfoBlue("renderChunk");
-      if (chunk.fileName.match(/\.(js|ts|jsx|tsx|mjs|cjs)$/)) {
-        const newCode = new MagicString(code);
-
-        newCode.prepend(freskBundleIdSnippet(bundleId, appName));
-
-        const map = newCode.generateMap({
-          source: chunk.fileName,
-          file: `${chunk.fileName}.map`,
-        });
-
-        return {
-          code: newCode.toString(),
-          map,
-        };
+      if (!FILE_EXTENSION_REGEX.test(chunk.fileName)) {
+        return null;
       }
 
-      return null;
+      const newCode = new MagicString(code);
+      newCode.prepend(freskBundleIdSnippet(bundleId, appName));
+
+      const map = newCode.generateMap({
+        source: chunk.fileName,
+        file: `${chunk.fileName}.map`,
+        includeContent: true,
+      });
+
+      return {
+        code: newCode.toString(),
+        map,
+      };
     },
+
     async writeBundle(options, bundle) {
-      const uploadedSourcemaps = [];
+      const outputPath = options.dir;
+      const failedUploads = [];
 
       try {
-        const outputPath = options.dir;
-
-        for (let filename in bundle) {
-          // only upload sourcemaps or contents in the outputFiles list
-          if (
-            outputFiles?.length
-              ? !outputFiles.map((o) => o + ".map").includes(filename)
-              : !filename.endsWith(".map")
-          ) {
+        for (const [filename, chunk] of Object.entries(bundle)) {
+          if (!shouldProcessFile(filename, outputFiles)) {
             continue;
           }
-          const result = await uploadSourceMap({
-            bundleId,
-            appId,
-            appKey,
-            endpoint,
-            filename,
-            filePath: `${outputPath}/${filename}`,
-            verbose: verbose,
-          });
 
-          if (result) {
-            uploadedSourcemaps.push(filename);
+          try {
+            const result = await uploadSourceMap({
+              bundleId,
+              appId,
+              appKey,
+              endpoint,
+              filename,
+              filePath: path.join(outputPath, filename),
+              verbose,
+            });
+
+            if (result) {
+              uploadedMaps.add(filename);
+            } else {
+              failedUploads.push(filename);
+            }
+          } catch (error) {
+            consoleError(`Failed to upload ${filename}: ${error.message}`);
+            failedUploads.push(filename);
           }
         }
 
-        // Delete source maps after build if specified
+        if (failedUploads.length > 0) {
+          throw new Error(`Failed to upload some sourcemaps: ${failedUploads.join(', ')}`);
+        }
+
         if (deleteMapsAfterBuild) {
-          for (const mapFile of sourcemapFiles) {
-            const mapPath = path.join(sourcemapDir, mapFile);
-            fs.unlinkSync(mapPath);
-            console.log(`Deleted source map: ${mapPath}`);
-          }
+          await deleteSourceMaps(outputPath, uploadedMaps);
         }
-      } catch (e) {
-        console.error(e);
-      }
 
-      if (uploadedSourcemaps.length && verbose) {
-        consoleInfoBlue(
-          `Uploaded sourcemaps: ${uploadedSourcemaps
-            .map((map) => map.split("/").pop())
-            .join(", ")}`
-        );
+        if (verbose && uploadedMaps.size > 0) {
+          consoleInfo(
+            `Uploaded sourcemaps: ${Array.from(uploadedMaps)
+              .map((map) => path.basename(map))
+              .join(", ")}`
+          );
+        }
+      } catch (error) {
+        consoleError(`Bundle processing failed: ${error.message}`);
+        throw error; // Re-throw to indicate build failure
       }
     },
   };
+}
+
+/**
+ * Determines if a file should be processed based on configuration
+ * @param {string} filename 
+ * @param {string[]} outputFiles 
+ * @returns {boolean}
+ */
+function shouldProcessFile(filename, outputFiles) {
+  if (!filename.endsWith('.map')) {
+    return false;
+  }
+
+  if (outputFiles.length === 0) {
+    return true;
+  }
+
+  return outputFiles.some(pattern => 
+    filename === pattern + '.map' || 
+    filename.startsWith(pattern + '/')
+  );
+}
+
+/**
+ * Deletes uploaded source maps
+ * @param {string} outputPath 
+ * @param {Set<string>} uploadedMaps 
+ */
+async function deleteSourceMaps(outputPath, uploadedMaps) {
+  const deletionPromises = Array.from(uploadedMaps).map(async (mapFile) => {
+    const mapPath = path.join(outputPath, mapFile);
+    try {
+      await fs.unlink(mapPath);
+      consoleInfo(`Deleted source map: ${mapPath}`);
+    } catch (error) {
+      consoleError(`Failed to delete ${mapPath}: ${error.message}`);
+    }
+  });
+
+  await Promise.all(deletionPromises);
 }

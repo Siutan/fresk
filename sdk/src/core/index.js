@@ -5,7 +5,7 @@ import { parse } from "./parser";
 /**
  * @type {string}
  */
-const SDK_VERSION = "0.3.3"
+const SDK_VERSION = "0.3.4"
 
 /**
  * @typedef {Object} Config
