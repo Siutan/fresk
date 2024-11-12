@@ -33,7 +33,7 @@
       </div>
       <div class="flex w-full justify-center">
         <ScrollArea
-          class="w-full max-w-7xl h-full p-4 overflow-auto "
+          class="w-full max-w-[95rem] h-full p-4 overflow-auto "
         >
           <slot />
         </ScrollArea>

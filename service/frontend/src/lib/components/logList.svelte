@@ -7,6 +7,7 @@
   export let items: RecordModel[];
 
   const handleSelectLog = (id: string) => {
+    console.log(id);
     logStore.setLog(id);
   };
 </script>

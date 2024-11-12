@@ -84,8 +84,6 @@
     }
   }
 
-  $: console.log(logs);
-
   function handleSearch(e: Event) {
     e.preventDefault();
     const form = e.target as HTMLFormElement;
@@ -93,11 +91,6 @@
     searchQuery = formData.get("search") as string;
     currentPage = 1;
     fetchLogs(currentPage, perPage, searchQuery);
-  }
-
-  function viewLog(logId: string) {
-    logStore.setLog(logId);
-    openSheet = true;
   }
 
   function handleAddFilterQuery(e: CustomEvent<{ value: string }>) {
@@ -206,7 +199,7 @@
   </div>
 {:else if logs?.length > 0}
   <ScrollArea class="relative h-[36rem] overflow-auto">
-    <Table.Root class="relative min-w-max max-w-7xl mb-10" width="100vw">
+    <Table.Root class="relative min-w-max mb-10" width="100vw">
       <Table.Header class="sticky top-0 z-10 bg-primary-foreground">
         <Table.Row class="border-background">
           <Table.Head class="w-[100px]">Group Id</Table.Head>

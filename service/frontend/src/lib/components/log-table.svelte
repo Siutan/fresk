@@ -7,7 +7,6 @@
   import LogSheet from "./log-sheet.svelte";
   import SelectedLog from "$lib/components/logs/selectedLog.svelte";
   import { logStore } from "$lib/stores/logStore";
-  import { onMount } from "svelte";
   import FilterSheet from "./filter-sheet.svelte";
   import ScrollArea from "$lib/components/ui/scroll-area/scroll-area.svelte";
   import { ChevronLeft, ChevronRight } from "lucide-svelte";
@@ -160,12 +159,13 @@
   </div>
 {:else if logs?.length > 0}
   <ScrollArea class="h-[36rem] overflow-auto">
-    <Table.Root class="relative min-w-max max-w-7xl" width="100vw">
+    <Table.Root class="relative min-w-max" width="100vw">
       <Table.Header class="sticky top-0 z-10 bg-primary-foreground">
         <Table.Row class="border-background">
           <Table.Head class="w-[100px]">Log Id</Table.Head>
           <Table.Head>Log Type</Table.Head>
-          <Table.Head class="w-32">Title</Table.Head>
+          <Table.Head>Bundle</Table.Head>
+          <Table.Head class="">Value</Table.Head>
           <Table.Head>Environment</Table.Head>
           <Table.Head>App Version</Table.Head>
           <Table.Head class="">Timestamp</Table.Head>
@@ -188,6 +188,14 @@
                 triggerText={row.log_type}
                 value={row.log_type}
                 rowLabel="log_type"
+                on:add-filter-query={handleAddFilterQuery}
+              />
+            </Table.Cell>
+            <Table.Cell>
+              <ItemContextMenu
+                triggerText={row.bundle}
+                value={row.bundle}
+                rowLabel="bundle"
                 on:add-filter-query={handleAddFilterQuery}
               />
             </Table.Cell>

@@ -52,7 +52,7 @@
     <div class="flex flex-col gap-4">
       <LogGroupHeaderCard
         {group}
-        error={errors && errors.length > 0 ? errors[0] : null}
+        error={errors && errors.length > 0 ? errors[errors.length - 1] : null}
       />
     </div>
     <div class="grid grid-cols-1 md:grid-cols-4 gap-4">

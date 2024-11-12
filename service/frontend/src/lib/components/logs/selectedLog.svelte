@@ -23,20 +23,26 @@
       error: any;
     };
     if (error || !thisLog) return;
-
+    
     const { data: app, error: appError } = await pbGet.getAppById(
       undefined,
       thisLog.app
     );
     if (appError || !app) return;
     appDetails = app;
-
+    
     let decoded_stacktrace;
+    
+    const bundles = await pbGet.getBundles(thisLog.app);
+    console.log({bundles});
+
+
     try {
       decoded_stacktrace = await decodeStacktrace(
         // appease typescript
         thisLog.stacktrace as any,
-        thisLog.app_id
+        thisLog.app,
+        thisLog.bundle
       );
     } catch (error) {
       console.error("Error decoding stacktrace:", error);
@@ -55,7 +61,7 @@
           ![
             "id",
             "created",
-            "app_id",
+            "app",
             "app_name",
             "app_version",
             "app_environment",
@@ -86,7 +92,7 @@
     <div class="w-full flex flex-col gap-4">
       <LogHeader
         id={log.id}
-        appId={log.app_id}
+        appId={log.app}
         appName={appDetails?.app_name || "unknown"}
         appVersion={log.app_version}
         appEnvironment={log.app_environment}

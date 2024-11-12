@@ -6,10 +6,13 @@
   export let currentError: Log;
 
   const getStacktrace = async (id: string) => {
+    console.log("getting stacktrace:", { currentError });
+
     const trace = await enhancedDecodeStacktrace(
         //@ts-ignore <I know I typed this as a string, but it's a stackframe array>
       currentError.stacktrace,
-      currentError.app_id
+      currentError.app,
+      currentError.bundle
     );
 
     return trace;

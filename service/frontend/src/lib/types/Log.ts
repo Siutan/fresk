@@ -2,8 +2,8 @@ import type{ RecordModel } from "pocketbase";
 
 export interface Log extends RecordModel {
   id: string;
-  app_id: string;
-  build_id: string;
+  app: string;
+  bundle: string;
   app_version: string;
   app_environment: string;
   session_id: string;
@@ -29,5 +29,5 @@ export interface Log extends RecordModel {
   value: string;
   stacktrace: string;
   decoded_stacktrace: string;
-  custom: any;
+  custom: Record<string, string>;
 }

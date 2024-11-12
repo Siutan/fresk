@@ -109,3 +109,9 @@ export function isInt(value: string | number) {
   const x = parseFloat(value);
   return (x | 0) === x;
 }
+
+export function bufferToJSON(buffer: Uint8Array) {
+  const buf = Uint8Array.from(buffer);
+  const jsonString = new TextDecoder().decode(buf);
+  return JSON.parse(jsonString);
+}

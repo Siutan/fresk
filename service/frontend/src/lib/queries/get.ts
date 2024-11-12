@@ -202,12 +202,29 @@ const pbGet = {
       return { data: null, error };
     }
   },
-  getSourceMapByFileName: async (name: string, appId: string) => {
+  getSourceMapByFileName: async (name: string, appId: string, bundle: string) => {
+    console.log({
+      appId,
+      bundle,
+      name,
+    })
     try {
       const record = await pb
         .collection("sourcemaps")
-        .getFirstListItem(`build="${appId}" && file_name~"%${name}"`);
+        .getFirstListItem(`app="${appId}" && bundle="${bundle}" && file_name~"%${name}"`);
       return { data: record, error: null };
+    } catch (error) {
+      console.error("error", error);
+      return { data: null, error };
+    }
+  },
+  getBundles: async (appId: string) => {
+    try {
+      const records = await pb.collection("bundles").getFullList({
+        filter: `app="${appId}"`,
+        sort: "-created",
+      });
+      return { data: records, error: null };
     } catch (error) {
       console.error("error", error);
       return { data: null, error };

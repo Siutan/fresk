@@ -7,8 +7,5 @@
 </script>
 
 <div class="w-full flex flex-col gap-4">
-  <!-- log list -->
-  <div class="">
-      <LogTable appId={app.id} />
-  </div>
+  <LogTable appId={app.id} />
 </div>

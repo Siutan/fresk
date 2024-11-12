@@ -4,6 +4,7 @@ import {
   type MappedPosition,
 } from "source-map-js";
 import { pbGet } from "$lib/queries/get";
+import { bufferToJSON } from "./utils";
 
 interface SourceMap {
   consumer: SourceMapConsumer;
@@ -61,7 +62,8 @@ function parseStackTrace(stackframes: StackFrame[]): StackTrace {
 
 async function fetchSourceMaps(
   fileNames: string[],
-  appId: string
+  appId: string,
+  bundle: string
 ): Promise<SourceMap[]> {
   const sourceMaps: SourceMap[] = [];
 
@@ -69,7 +71,7 @@ async function fetchSourceMaps(
     const mapFile = `${fileName.split("/").pop()}.map`;
     try {
       const { data: sourceMapRecord, error } =
-        await pbGet.getSourceMapByFileName(mapFile, appId);
+        await pbGet.getSourceMapByFileName(mapFile, appId, bundle);
       if (error || !sourceMapRecord) {
         console.warn(
           `Failed to fetch source map for ${mapFile}: ${
@@ -78,7 +80,7 @@ async function fetchSourceMaps(
         );
         continue;
       }
-      const rawSourceMap: RawSourceMap = sourceMapRecord.map;
+      const rawSourceMap: RawSourceMap = bufferToJSON((sourceMapRecord.map as { data: Uint8Array, type: string }).data);
       const consumer = new SourceMapConsumer(rawSourceMap);
       sourceMaps.push({
         consumer,
@@ -199,21 +201,25 @@ function extractCodeFromSourceMap(
     .map((line, index) => {
       const currentLineNumber = startLine + index + 1;
       const indicator = currentLineNumber === lineNumber ? ">" : " ";
-      return `${indicator} ${currentLineNumber.toString().padStart(5)}: ${line}`;
+      return `${indicator} ${currentLineNumber
+        .toString()
+        .padStart(5)}: ${line}`;
     })
     .join("\n");
 }
 
 async function decodeStacktrace(
   stackframes: StackFrame[],
-  appId: string
+  appId: string,
+  bundle: string
 ): Promise<string> {
   try {
     console.log(stackframes);
     const parsedStackTrace = parseStackTrace(stackframes);
     const sourceMaps = await fetchSourceMaps(
       parsedStackTrace.fileNames,
-      appId
+      appId,
+      bundle
     );
     return transform(sourceMaps, parsedStackTrace);
   } catch (error) {
@@ -239,7 +245,7 @@ function formatCodeContext(
 ): CodeContextLine[] | null {
   if (!codeContext) return null;
 
-  const lines = codeContext.split('\n');
+  const lines = codeContext.split("\n");
   const formattedContext: CodeContextLine[] = [];
 
   for (const line of lines) {
@@ -250,7 +256,7 @@ function formatCodeContext(
       formattedContext.push({
         line: currentLineNumber,
         isHighlighted: currentLineNumber === errorLine,
-        text: code.trimEnd() // Remove trailing whitespace
+        text: code.trimEnd(), // Remove trailing whitespace
       });
     }
   }
@@ -258,18 +264,19 @@ function formatCodeContext(
   return formattedContext;
 }
 
-
-
 async function enhancedDecodeStacktrace(
   stackframes: StackFrame[],
-  appId: string
+  appId: string,
+  bundle: string
 ): Promise<EnhancedStacktraceResult> {
   try {
     const parsedStackTrace = parseStackTrace(stackframes);
     const sourceMaps = await fetchSourceMaps(
       parsedStackTrace.fileNames,
-      appId
+      appId,
+      bundle
     );
+    console.log({sourceMaps});
     const decodedStacktrace = transform(sourceMaps, parsedStackTrace);
 
     const bindings = calculateBindings(sourceMaps, parsedStackTrace);
@@ -285,7 +292,10 @@ async function enhancedDecodeStacktrace(
           originalPosition.source,
           originalPosition.line || 0
         );
-        codeContext = formatCodeContext(rawCodeContext, originalPosition.line || 0)
+        codeContext = formatCodeContext(
+          rawCodeContext,
+          originalPosition.line || 0
+        );
       }
     }
 

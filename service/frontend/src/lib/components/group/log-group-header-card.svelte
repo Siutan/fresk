@@ -15,7 +15,8 @@
     }
     const stacktrace = await enhancedDecodeStacktrace(
       error.stacktrace,
-      error.app_id
+      error.app,
+      error.bundle
     );
 
     // get the line where isHighlighted is true
