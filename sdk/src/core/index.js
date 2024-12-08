@@ -297,21 +297,48 @@ class FreskWebSDK {
     };
   }
 
-  // Wrap fetch to monitor network errors
+  /**
+   * @private
+   * @description Wraps fetch calls to monitor failed requests
+   */
   wrapFetch() {
     const originalFetch = window.fetch;
     window.fetch = async (...args) => {
+      const [url, options] = args;
+      const obfuscatedOptions = this.obfuscateSensitiveData(options);
       try {
-        const response = await originalFetch(...args);
+        const response = await originalFetch(url, obfuscatedOptions);
         if (!response.ok) {
-          this.handleNetworkError("fetch", args[0], response.status);
+          const errorData = await this.getResponseErrorData(response);
+          this.handleNetworkError('fetch', url, response.status, errorData);
         }
         return response;
       } catch (error) {
-        this.handleNetworkError("fetch", args[0]);
+        this.handleNetworkError('fetch', url);
         throw error;
       }
     };
+  }
+
+  obfuscateSensitiveData(options) {
+    if (!options || !options.headers) return options;
+    const obfuscatedHeaders = { ...options.headers };
+    if (obfuscatedHeaders['Authorization']) {
+      obfuscatedHeaders['Authorization'] = '***';
+    }
+    if (obfuscatedHeaders['Cookie']) {
+      obfuscatedHeaders['Cookie'] = '***';
+    }
+    return { ...options, headers: obfuscatedHeaders };
+  }
+  
+  async getResponseErrorData(response) {
+    try {
+      const text = await response.text();
+      return text.length > 500 ? `${text.slice(0, 500)}...` : text;
+    } catch (error) {
+      return 'Failed to read response body';
+    }
   }
 
   /**

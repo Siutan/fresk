@@ -1,0 +1,1476 @@
+This file is a merged representation of the entire codebase, combining all repository files into a single document.
+
+================================================================
+File Summary
+================================================================
+
+Purpose:
+--------
+This file contains a packed representation of the entire repository's contents.
+It is designed to be easily consumable by AI systems for analysis, code review,
+or other automated processes.
+
+File Format:
+------------
+The content is organized as follows:
+1. This summary section
+2. Repository information
+3. Repository structure
+4. Multiple file entries, each consisting of:
+  a. A separator line (================)
+  b. The file path (File: path/to/file)
+  c. Another separator line
+  d. The full contents of the file
+  e. A blank line
+
+Usage Guidelines:
+-----------------
+- This file should be treated as read-only. Any changes should be made to the
+  original repository files, not this packed version.
+- When processing this file, use the file path to distinguish
+  between different files in the repository.
+- Be aware that this file may contain sensitive information. Handle it with
+  the same level of security as you would the original repository.
+
+================================================================
+Repository Structure
+================================================================
+src/
+  core/
+    index.js
+    parser.js
+  shared/
+    bundler.js
+  vite/
+    index.js
+  mod.js
+
+================================================================
+Repository Files
+================================================================
+
+================
+File: src/core/index.js
+================
+import Bowser from "bowser";
+import * as rrweb from "rrweb";
+import { parse } from "./parser";
+
+/**
+ * @type {string}
+ */
+const SDK_VERSION = "0.3.4"
+
+/**
+ * @typedef {Object} Config
+ * @property {string} appId
+ * @property {string} appKey
+ * @property {string} appName
+ * @property {string} endpoint
+ * @property {string} appName
+ * @property {string} version
+ * @property {string} environment
+ */
+
+/**
+ * @typedef {Object} ErrorData
+ * @property {string} message
+ * @property {string} [url]
+ * @property {number} [line]
+ * @property {number} [column]
+ * @property {string} [stacktrace]
+ * @property {string} kind
+ * @property {any} [custom]
+ */
+
+/**
+ * @typedef {Object} PayloadData
+ * @property {string} app_id
+ * @property {string} bundle_id
+ * @property {string} app_version
+ * @property {string} app_environment
+ * @property {string} session_id
+ * @property {string} session_email
+ * @property {string} device_type
+ * @property {string} browser_name
+ * @property {string} browser_version
+ * @property {string} os_name
+ * @property {string} os_version
+ * @property {string} page_id
+ * @property {string} page_url
+ * @property {string} screen_resolution
+ * @property {string} viewport_size
+ * @property {number|null} memory_usage
+ * @property {string} network_type
+ * @property {string} language
+ * @property {string} time_zone
+ * @property {string|null} referrer
+ * @property {Performance|null} performance_metrics
+ * @property {string} sdk_version
+ * @property {number} time
+ * @property {string} kind
+ * @property {string} value
+ * @property {string} stacktrace
+ * @property {any} custom
+ */
+
+class FreskWebSDK {
+  /** @type {string} */
+  appId;
+  /** @type {string} */
+  appKey;
+  /** @type {string} */
+  appName;
+  /** @type {string} */
+  bundle_id;
+  /** @type {string} */
+  appVersion;
+  /** @type {string} */
+  appEnvironment;
+  /** @type {string} */
+  appEndpoint;
+  /** @type {number} */
+  retryLimit;
+  /** @type {number} */
+  retryCount;
+  /** @type {Parser.Parser} */
+  browser;
+  /** @type {any[]} */
+  events;
+
+  /**
+   * @param {Config} config
+   */
+  constructor(config) {
+    for (const key in config) {
+      if (!config[key]) {
+        throw new Error(`Config is missing required field: ${key}`);
+      }
+    }
+
+    this.appId = config.appId;
+    this.appName = config.appName;
+    this.bundle_id = this.getBundleId();
+    this.appKey = config.appKey;
+    this.appEndpoint = config.endpoint.endsWith("/")
+      ? config.endpoint.slice(0, -1)
+      : config.endpoint;
+    this.appVersion = config.version;
+    this.appEnvironment = config.environment;
+
+    this.maxRetries = 5;
+    this.retryDelay = 30000;
+
+    this.browser = Bowser.getParser(window.navigator.userAgent);
+
+    this.isHandlingError = false;
+    this.errorQueue = [];
+    this.maxQueueSize = 10;
+    this.retryTimeout = null;
+
+    this.sdkSourceRegex = /@fresk\/web-sdk\/mod\.js/;
+
+    this.breadcrumbs = [];
+    this.maxBreadcrumbs = 50;
+
+    this.events = [];
+  }
+
+  getBundleId() {
+    // get bundle id from (global).__freskBundleId_{APPNAME}
+    const globalObject =
+      typeof globalThis !== "undefined"
+        ? globalThis
+        : typeof global !== "undefined"
+        ? global
+        : typeof self !== "undefined"
+        ? self
+        : undefined;
+
+    return globalObject?.[`__freskBundleId_${this.appName}`] || null;
+  }
+
+  init() {
+    this.hookErrors();
+    this.hookUnhandledRejections();
+    this.wrapTimers();
+    this.wrapXHR();
+    this.wrapFetch();
+    this.captureClientInfo();
+    this.startPerformanceMonitoring();
+
+    // disabling recording for now, maybe we can come back to it later
+    // this.startRecording();
+  }
+
+  ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+  // Public functions //
+  ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+  /**
+   * @param {string} email
+   * @public
+   * @description Identify the user by their email address
+   */
+  identify(email) {
+    if (!email || !email.includes("@")) {
+      return;
+    }
+
+    sessionStorage.setItem("session_email", email);
+  }
+
+  /**
+   * @public
+   * @description Reset the session
+   */
+  reset() {
+    sessionStorage.removeItem("session_id");
+    sessionStorage.removeItem("session_email");
+  }
+
+  ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+  // Hooks & wrappers //
+  ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+  /**
+   * @private
+   * @description Start recording events
+   */
+  startRecording() {
+    rrweb.record({
+      emit: (event) => {
+        // Use an arrow function to preserve 'this' context
+        this.events.push(event);
+      },
+    });
+
+    // save recording every 10 seconds
+    setInterval(this.saveRecording, 10 * 1000);
+  }
+
+  /** Hook errors to the window object */
+  hookErrors() {
+    window.onerror = (msg, url, lineNo, columnNo, error) => {
+      this.handleUnhandledError("onerror", msg, url, lineNo, columnNo, error);
+    };
+
+    // Capture errors from event listeners
+    window.addEventListener("error", (event) => {
+      if (event.error) {
+        this.handleUnhandledError(
+          "addEventListener",
+          event.message,
+          event.filename,
+          event.lineno,
+          event.colno,
+          event.error
+        );
+      }
+    });
+
+    // Override console.error to capture console errors
+    const originalConsoleError = console.error;
+    console.error = (...args) => {
+      this.handleConsoleError(...args);
+      originalConsoleError.apply(console, args);
+    };
+  }
+
+  /**
+   * @private
+   * @description Hook unhandled rejections to the window object
+   */
+  hookUnhandledRejections() {
+    window.onunhandledrejection = (event) => {
+      const error = event.reason;
+      this.handleUnhandledError(
+        "unhandledrejection",
+        error.message,
+        window.location.href,
+        0,
+        0,
+        error
+      );
+    };
+  }
+
+  /**
+   * @private
+   * @description Wrap setTimeout and setInterval to catch async errors
+   */
+  wrapTimers() {
+    ["setTimeout", "setInterval"].forEach((fnName) => {
+      const original = window[fnName];
+      window[fnName] = (fn, ...args) => {
+        return original(this.wrapCallback(fn, fnName), ...args);
+      };
+    });
+  }
+
+  /**
+   * @param {Function} fn
+   * @param {string} source
+   * @private
+   * @description Wrap callback functions to catch errors
+   */
+  wrapCallback(fn, source) {
+    return (...args) => {
+      try {
+        return fn(...args);
+      } catch (error) {
+        this.handleUnhandledError(
+          source,
+          error.message,
+          window.location.href,
+          0,
+          0,
+          error
+        );
+        throw error;
+      }
+    };
+  }
+
+  /**
+   * @private
+   * @description Wrap XMLHttpRequest to monitor network errors
+   */
+  wrapXHR() {
+    const originalOpen = XMLHttpRequest.prototype.open;
+    XMLHttpRequest.prototype.open = function (...args) {
+      this.addEventListener("error", () => {
+        this.handleNetworkError("xhr", args[1]);
+      });
+      this.addEventListener("load", () => {
+        if (this.status >= 400) {
+          this.handleNetworkError("xhr", args[1], this.status);
+        }
+      });
+      return originalOpen.apply(this, args);
+    };
+  }
+
+  // Wrap fetch to monitor network errors
+  wrapFetch() {
+    const originalFetch = window.fetch;
+    window.fetch = async (...args) => {
+      try {
+        const response = await originalFetch(...args);
+        if (!response.ok) {
+          this.handleNetworkError("fetch", args[0], response.status);
+        }
+        return response;
+      } catch (error) {
+        this.handleNetworkError("fetch", args[0]);
+        throw error;
+      }
+    };
+  }
+
+  /**
+   * @param {string} source
+   * @param {string} msg
+   * @param {string} url
+   * @param {number} lineNo
+   * @param {number} columnNo
+   * @param {Error} error
+   * @private
+   * @description Handle unhandled errors
+   */
+  handleUnhandledError(source, msg, url, lineNo, columnNo, error) {
+    const stacktrace = this.getStackTrace(error);
+    const errorData = {
+      message: msg,
+      url: url,
+      line: lineNo,
+      column: columnNo,
+      stacktrace: stacktrace,
+      kind: source,
+    };
+    console.debug("Pushing error to queue:", errorData);
+    this.pushError(errorData);
+  }
+
+  /**
+   * @param {string} type
+   * @param {string} url
+   * @param {number} status
+   * @private
+   * @description Handle network errors
+   */
+  handleNetworkError(type, url, status = null) {
+    const errorData = {
+      message: `${type.toUpperCase()} request failed`,
+      url: url,
+      kind: "network_error",
+      custom: { type, status },
+    };
+    this.pushError(errorData);
+  }
+
+  /**
+   *
+   * @param  {...any} args
+   * @private
+   * @description Handle console errors
+   */
+  handleConsoleError(...args) {
+    if (!this.isHandlingError) {
+      this.isHandlingError = true;
+      this.pushError({
+        message: args.join(" "),
+        kind: "console_error",
+      });
+      this.isHandlingError = false;
+    }
+  }
+
+  /**
+   * @private
+   * @description Start monitoring performance metrics and adds breadcrumbs
+   */
+  startPerformanceMonitoring() {
+    if ("PerformanceObserver" in window) {
+      const observer = new PerformanceObserver((list) => {
+        list.getEntries().forEach((entry) => {
+          if (entry.entryType === "largest-contentful-paint") {
+            this.addBreadcrumb("performance", "Largest Contentful Paint", {
+              value: entry.startTime,
+            });
+          } else if (entry.entryType === "layout-shift") {
+            this.addBreadcrumb("performance", "Cumulative Layout Shift", {
+              value: entry.value,
+            });
+          }
+        });
+      });
+      observer.observe({
+        entryTypes: ["largest-contentful-paint", "layout-shift"],
+      });
+    }
+  }
+
+  ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+  // Data processing //
+  ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+  /**
+   *
+   * @param {Error} error
+   * @returns {string}
+   * @private
+   * @description Get stack trace from error object
+   */
+  getStackTrace(error) {
+    if (error && error.stack) {
+      try {
+        return parse(error);
+      } catch (error) {
+        console.error("Error parsing stacktrace:", error);
+        return error.stack;
+      }
+    } else {
+      try {
+        throw new Error();
+      } catch (e) {
+        try {
+          return parse(e);
+        } catch (error) {
+          console.error("Error parsing stacktrace:", error);
+          return e.stack;
+        }
+      }
+    }
+  }
+
+  // Capture detailed client information
+  captureClientInfo() {
+    this.clientInfo = {
+      user_agent: navigator.userAgent,
+      language: navigator.language,
+      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+      screen_size: `${screen.width}x${screen.height}`,
+      viewport_size: `${window.innerWidth}x${window.innerHeight}`,
+      platform: this.browser.getPlatform().type,
+      browser_name: this.browser.getBrowser().name,
+      browser_version: this.browser.getBrowser().version,
+      os_name: this.browser.getOS().name,
+      os_version: this.browser.getOS().version,
+    };
+  }
+
+  // Add a breadcrumb to track user actions and events
+  addBreadcrumb(category, message, data = {}) {
+    const breadcrumb = {
+      timestamp: new Date().toISOString(),
+      category,
+      message,
+      data,
+    };
+    this.breadcrumbs.push(breadcrumb);
+    if (this.breadcrumbs.length > this.maxBreadcrumbs) {
+      this.breadcrumbs.shift();
+    }
+  }
+
+  createErrorPayload(errorData) {
+    return {
+      ...this.clientInfo,
+      app_id: this.appId,
+      bundle_id: this.bundle_id || null,
+      app_version: this.appVersion,
+      app_environment: this.appEnvironment,
+      value: errorData.message,
+      stacktrace: errorData.stacktrace || "",
+      session_id: this.getSessionId(),
+      session_email: this.getSessionEmail(),
+      page_id: this.getPageId(window.location.href),
+      page_url: window.location.href,
+      memory_usage: this.getMemoryUsage(),
+      network_type: this.getNetworkType(),
+      referrer: document.referrer || null,
+      sdk_version: SDK_VERSION,
+      time: Date.now(),
+      log_type: errorData.kind,
+      custom: errorData.custom || null,
+      breadcrumbs: this.breadcrumbs,
+      performance_metrics: this.getPerformanceMetrics(),
+    };
+  }
+
+  /** Push an error to the server */
+  pushError(errorData) {
+    if (this.isReportingError) {
+      return;
+    }
+
+    if (this.shouldIgnoreError(errorData)) {
+      console.debug("Ignoring error from SDK:", errorData.message);
+      return;
+    }
+
+    const payload = this.createErrorPayload(errorData);
+
+    this.errorQueue.push(payload);
+    this.isReportingError = true;
+    this.sendNextError();
+  }
+
+  sendNextError() {
+    if (this.errorQueue.length === 0) {
+      console.debug("Error queue is empty");
+      this.isReportingError = false;
+
+      return;
+    }
+
+    const payload = this.errorQueue[0];
+    this.sendToServer(payload, 0);
+  }
+
+  reportError(errorData) {
+    if (this.isReportingError) {
+      return;
+    }
+
+    const payload = this.createErrorPayload(errorData);
+
+    this.sendToServer(payload)
+      .then(() => {
+        console.debug("Error reported successfully");
+      })
+      .catch((error) => {
+        console.warn("Failed to report error:", error);
+        // Don't rethrow the error here
+      })
+      .finally(() => {
+        this.isReportingError = false;
+        this.processErrorQueue();
+      });
+  }
+
+  processErrorQueue() {
+    if (this.errorQueue.length > 0 && !this.isReportingError) {
+      const nextError = this.errorQueue.shift();
+      this.reportError(nextError);
+    }
+  }
+
+  retryFailedReport() {
+    if (this.errorQueue.length > 0 && !this.isReportingError) {
+      clearTimeout(this.retryTimeout);
+      this.retryTimeout = setTimeout(() => {
+        this.processErrorQueue();
+      }, 5000); // Wait 5 seconds before retrying
+    }
+  }
+
+  /**
+   * @param {PayloadData} payload
+   * @param {number} retryCount
+   * @private
+   * @description Send an error to the server
+   */
+  sendToServer(payload, retryCount) {
+    fetch(`${this.appEndpoint}/error`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        authorization: `Bearer ${this.appId}:${this.appKey}`,
+      },
+      body: JSON.stringify(payload),
+    })
+      .then((response) => {
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        // Success: remove the sent error from the queue
+        this.errorQueue.shift();
+        this.sendNextError();
+      })
+      .catch((err) => {
+        console.warn(`Failed to send error: ${err.message}`);
+        if (retryCount < this.maxRetries) {
+          // Retry after a delay
+          setTimeout(() => {
+            this.sendToServer(payload, retryCount + 1);
+          }, this.retryDelay * Math.pow(2, retryCount)); // Exponential backoff
+        } else {
+          // Max retries reached: drop this error and move to the next
+          console.error("Max retry attempts reached. Error not sent:", payload);
+          this.errorQueue.shift();
+          this.sendNextError();
+        }
+      });
+  }
+
+  calculateRetryDelay(retryCount) {
+    // Exponential backoff with jitter
+    const delay = Math.min(
+      this.maxRetryDelay,
+      this.initialRetryDelay * Math.pow(2, retryCount)
+    );
+    return delay + Math.random() * 1000; // Add up to 1 second of random jitter
+  }
+
+  handleMaxRetriesReached(payload) {
+    // ideas for fallback behavior:
+    // 1. Store the error locally and try to send it later
+    // 2. send the error to a fallback endpoint (will need to implement this)
+    console.error("Failed to send error after multiple attempts:", payload);
+  }
+
+  ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+  // Helper functions //
+  ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+  /**
+   * @param {string | ErrorData} message
+   * @private
+   * @description checks if the error should be ignored
+   */
+  shouldIgnoreError(errorData) {
+    if (
+      errorData.stacktrace &&
+      this.sdkSourceRegex.test(errorData.stacktrace)
+    ) {
+      return true;
+    }
+
+    return false;
+  }
+
+  /**
+   * @param {string} url
+   * @returns {string}
+   * @private
+   * @description Get the page id from the URL
+   */
+  getPageId(url) {
+    const urlParts = url.split("/");
+    const pageId = urlParts.slice(3).join("/") || "/";
+    return pageId;
+  }
+
+  /**
+   * @returns {string}
+   * @private
+   * @description Get the session id
+   */
+  getSessionId() {
+    return sessionStorage.getItem("session_id") || this.generateSessionId();
+  }
+
+  /**
+   * @returns {string}
+   * @private
+   * @description Get the session email
+   */
+  getSessionEmail() {
+    return sessionStorage.getItem("session_email") || "";
+  }
+
+  /**
+   * @returns {string}
+   * @private
+   * @description Generate a new session id
+   */
+  generateSessionId() {
+    const sessionId = crypto.randomUUID();
+    sessionStorage.setItem("session_id", sessionId);
+    return sessionId;
+  }
+
+  /**
+   * @returns {string}
+   * @private
+   * @description Get memory usage of the device
+   */
+  getMemoryUsage() {
+    if ("memory" in performance) {
+      return performance.memory.usedJSHeapSize;
+    }
+    return null;
+  }
+
+  /**
+   * @returns {string}
+   * @private
+   * @description Get the network type
+   */
+  getNetworkType() {
+    if ("connection" in navigator && navigator.connection.effectiveType) {
+      return navigator.connection.effectiveType;
+    }
+    return "unknown";
+  }
+
+  /**
+   * @returns {string}
+   * @private
+   * @description Get performance metrics, including first paint, first contentful paint, and load time
+   */
+  getPerformanceMetrics() {
+    const metrics = {};
+    if ("performance" in window) {
+      const paintMetrics = performance.getEntriesByType("paint");
+      const navigationTiming = performance.getEntriesByType("navigation")[0];
+
+      metrics.firstPaint = paintMetrics.find(
+        ({ name }) => name === "first-paint"
+      )?.startTime;
+      metrics.firstContentfulPaint = paintMetrics.find(
+        ({ name }) => name === "first-contentful-paint"
+      )?.startTime;
+      metrics.domLoad =
+        navigationTiming.domContentLoadedEventEnd -
+        navigationTiming.domContentLoadedEventStart;
+      metrics.loadTime =
+        navigationTiming.loadEventEnd - navigationTiming.loadEventStart;
+
+      // Include Core Web Vitals if available
+      if ("PerformanceObserver" in window) {
+        const lcpObserver = new PerformanceObserver((list) => {
+          const lcpEntry = list.getEntries().at(-1);
+          metrics.largestContentfulPaint = lcpEntry.startTime;
+        });
+        lcpObserver.observe({
+          type: "largest-contentful-paint",
+          buffered: true,
+        });
+
+        let cumulativeLayoutShift = 0;
+        const clsObserver = new PerformanceObserver((list) => {
+          for (const entry of list.getEntries()) {
+            if (!entry.hadRecentInput) {
+              cumulativeLayoutShift += entry.value;
+            }
+          }
+          metrics.cumulativeLayoutShift = cumulativeLayoutShift;
+        });
+        clsObserver.observe({ type: "layout-shift", buffered: true });
+
+        const fidObserver = new PerformanceObserver((list) => {
+          const fidEntry = list.getEntries()[0];
+          metrics.firstInputDelay =
+            fidEntry.processingStart - fidEntry.startTime;
+        });
+        fidObserver.observe({ type: "first-input", buffered: true });
+      }
+    }
+    return metrics;
+  }
+
+  ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+  // DOM Recording //
+  ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+  // this function will send events to the backend and reset the events array
+  saveRecording = () => {
+    if (this.events.length === 0) {
+      console.debug("No events to save");
+      return;
+    }
+    const body = JSON.stringify({
+      events: this.events,
+      session_id: this.getSessionId(),
+    });
+    this.events = [];
+    fetch(`${this.appEndpoint}/record`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-App-Id": this.appId,
+        "X-App-Key": this.appKey,
+      },
+      body,
+    });
+  };
+}
+
+export default FreskWebSDK;
+
+================
+File: src/core/parser.js
+================
+/**
+ * Port from https://github.com/stacktracejs/error-stack-parser
+ * and https://github.com/antfu-collective
+ * Modified by Siutan to support Fresk
+ */
+
+/**
+ * @typedef {Object} ParseOptions
+ * @property {number | [number, number]} [slice] - Slice the stack from the given index.
+ * @property {boolean} [allowEmpty=false] - Whether to return empty stack or throw an error when `stack` not found.
+ */
+
+/**
+ * @typedef {Object} StackFrameLite
+ * @property {string} [function] - Function name.
+ * @property {any[]} [args] - Arguments.
+ * @property {string} [file] - File name.
+ * @property {number} [col] - Column number.
+ * @property {number} [line] - Line number.
+ * @property {string} [raw] - Raw stack frame string.
+ */
+
+const FIREFOX_SAFARI_STACK_REGEXP = /(^|@)\S+:\d+/
+const CHROME_IE_STACK_REGEXP = /^\s*at .*(\S+:\d+|\(native\))/m
+const SAFARI_NATIVE_CODE_REGEXP = /^(eval@)?(\[native code\])?$/
+
+/**
+ * Given an Error object, extract the most information from it.
+ *
+ * @param {Error} error - Error object
+ * @param {ParseOptions} [options] - Parsing options
+ * @return {StackFrameLite[]} Array of StackFrames
+ */
+export function parse(error, options) {
+  if (typeof error.stacktrace !== 'undefined' || typeof error['opera#sourceloc'] !== 'undefined')
+    return parseOpera(error, options)
+  else if (error.stack && error.stack.match(CHROME_IE_STACK_REGEXP))
+    return parseV8OrIE(error, options)
+  else if (error.stack)
+    return parseFFOrSafari(error, options)
+  else if (options?.allowEmpty)
+    return []
+  else
+    throw new Error('Cannot parse given Error object, ', error)
+}
+
+/**
+ * Parse stack string from V8, Firefox, or IE into an array of StackFrames.
+ *
+ * @param {string} stackString - Stack string
+ * @param {ParseOptions} [options] - Parsing options
+ * @return {StackFrameLite[]} Array of StackFrames
+ */
+export function parseStack(stackString, options) {
+  if (stackString.match(CHROME_IE_STACK_REGEXP))
+    return parseV8OrIeString(stackString, options)
+  else
+    return parseFFOrSafariString(stackString, options)
+}
+
+/**
+ * Separate line and column numbers from a string of the form: (URI:Line:Column)
+ *
+ * @param {string} urlLike - URL-like string
+ * @return {[string, (string|undefined), (string|undefined)]} Array containing file, line, and column
+ */
+export function extractLocation(urlLike) {
+  if (!urlLike.includes(':'))
+    return [urlLike, undefined, undefined]
+
+  const regExp = /(.+?)(?::(\d+))?(?::(\d+))?$/
+  const parts = regExp.exec(urlLike.replace(/[()]/g, ''))
+  return [parts[1], parts[2] || undefined, parts[3] || undefined]
+}
+
+/**
+ * Apply slice options to an array of lines.
+ *
+ * @param {Array} lines - Array of lines
+ * @param {ParseOptions} [options] - Parsing options
+ * @return {Array} Sliced array of lines
+ */
+function applySlice(lines, options) {
+  if (options && options.slice != null) {
+    if (Array.isArray(options.slice))
+      return lines.slice(options.slice[0], options.slice[1])
+    return lines.slice(0, options.slice)
+  }
+  return lines
+}
+
+/**
+ * Parse V8 or IE stack trace.
+ *
+ * @param {Error} error - Error object
+ * @param {ParseOptions} [options] - Parsing options
+ * @return {StackFrameLite[]} Array of StackFrames
+ */
+export function parseV8OrIE(error, options) {
+  return parseV8OrIeString(error.stack, options)
+}
+
+/**
+ * Parse V8 or IE stack string.
+ *
+ * @param {string} stack - Stack string
+ * @param {ParseOptions} [options] - Parsing options
+ * @return {StackFrameLite[]} Array of StackFrames
+ */
+export function parseV8OrIeString(stack, options) {
+  const filtered = applySlice(
+    stack.split('\n').filter((line) => {
+      return !!line.match(CHROME_IE_STACK_REGEXP)
+    }),
+    options,
+  )
+
+  return filtered.map((line) => {
+    if (line.includes('(eval ')) {
+      line = line.replace(/eval code/g, 'eval').replace(/(\(eval at [^()]*)|(,.*$)/g, '')
+    }
+    let sanitizedLine = line.replace(/^\s+/, '').replace(/\(eval code/g, '(').replace(/^.*?\s+/, '')
+
+    const location = sanitizedLine.match(/ (\(.+\)$)/)
+    sanitizedLine = location ? sanitizedLine.replace(location[0], '') : sanitizedLine
+
+    const locationParts = extractLocation(location ? location[1] : sanitizedLine)
+    const functionName = (location && sanitizedLine) || undefined
+    const fileName = ['eval', '<anonymous>'].includes(locationParts[0]) ? undefined : locationParts[0]
+
+    return {
+      function: functionName,
+      file: fileName,
+      line: locationParts[1] ? +locationParts[1] : undefined,
+      col: locationParts[2] ? +locationParts[2] : undefined,
+      raw: line,
+    }
+  })
+}
+
+/**
+ * Parse Firefox or Safari stack trace.
+ *
+ * @param {Error} error - Error object
+ * @param {ParseOptions} [options] - Parsing options
+ * @return {StackFrameLite[]} Array of StackFrames
+ */
+export function parseFFOrSafari(error, options) {
+  return parseFFOrSafariString(error.stack, options)
+}
+
+/**
+ * Parse Firefox or Safari stack string.
+ *
+ * @param {string} stack - Stack string
+ * @param {ParseOptions} [options] - Parsing options
+ * @return {StackFrameLite[]} Array of StackFrames
+ */
+export function parseFFOrSafariString(stack, options) {
+  const filtered = applySlice(
+    stack.split('\n').filter((line) => {
+      return !line.match(SAFARI_NATIVE_CODE_REGEXP)
+    }),
+    options,
+  )
+
+  return filtered.map((line) => {
+    if (line.includes(' > eval'))
+      line = line.replace(/ line (\d+)(?: > eval line \d+)* > eval:\d+:\d+/g, ':$1')
+
+    if (!line.includes('@') && !line.includes(':')) {
+      return {
+        function: line,
+      }
+    } else {
+      const functionNameRegex = /(([^\n\r"\u2028\u2029]*".[^\n\r"\u2028\u2029]*"[^\n\r@\u2028\u2029]*(?:@[^\n\r"\u2028\u2029]*"[^\n\r@\u2028\u2029]*)*(?:[\n\r\u2028\u2029][^@]*)?)?[^@]*)@/
+      const matches = line.match(functionNameRegex)
+      const functionName = (matches && matches[1]) ? matches[1] : undefined
+      const locationParts = extractLocation(line.replace(functionNameRegex, ''))
+
+      return {
+        function: functionName,
+        file: locationParts[0],
+        line: locationParts[1] ? +locationParts[1] : undefined,
+        col: locationParts[2] ? +locationParts[2] : undefined,
+        raw: line,
+      }
+    }
+  })
+}
+
+/**
+ * Parse Opera stack trace.
+ *
+ * @param {Error} e - Error object
+ * @param {ParseOptions} [options] - Parsing options
+ * @return {StackFrameLite[]} Array of StackFrames
+ */
+export function parseOpera(e, options) {
+  if (!e.stacktrace || (e.message.includes('\n') && e.message.split('\n').length > e.stacktrace.split('\n').length))
+    return parseOpera9(e)
+  else if (!e.stack)
+    return parseOpera10(e)
+  else
+    return parseOpera11(e, options)
+}
+
+/**
+ * Parse Opera 9 stack trace.
+ *
+ * @param {Error} e - Error object
+ * @param {ParseOptions} [options] - Parsing options
+ * @return {StackFrameLite[]} Array of StackFrames
+ */
+export function parseOpera9(e, options) {
+  const lineRE = /Line (\d+).*script (?:in )?(\S+)/i
+  const lines = e.message.split('\n')
+  const result = []
+
+  for (let i = 2, len = lines.length; i < len; i += 2) {
+    const match = lineRE.exec(lines[i])
+    if (match) {
+      result.push({
+        file: match[2],
+        line: +match[1],
+        raw: lines[i],
+      })
+    }
+  }
+
+  return applySlice(result, options)
+}
+
+/**
+ * Parse Opera 10 stack trace.
+ *
+ * @param {Error} e - Error object
+ * @param {ParseOptions} [options] - Parsing options
+ * @return {StackFrameLite[]} Array of StackFrames
+ */
+export function parseOpera10(e, options) {
+  const lineRE = /Line (\d+).*script (?:in )?(\S+)(?:: In function (\S+))?$/i
+  const lines = e.stacktrace.split('\n')
+  const result = []
+
+  for (let i = 0, len = lines.length; i < len; i += 2) {
+    const match = lineRE.exec(lines[i])
+    if (match) {
+      result.push({
+        function: match[3] || undefined,
+        file: match[2],
+        line: match[1] ? +match[1] : undefined,
+        raw: lines[i],
+      })
+    }
+  }
+
+  return applySlice(result, options)
+}
+
+/**
+ * Parse Opera 11+ stack trace.
+ *
+ * @param {Error} error - Error object
+ * @param {ParseOptions} [options] - Parsing options
+ * @return {StackFrameLite[]} Array of StackFrames
+ */
+export function parseOpera11(error, options) {
+  const filtered = applySlice(
+    error.stack.split('\n').filter((line) => {
+      return !!line.match(FIREFOX_SAFARI_STACK_REGEXP) && !line.match(/^Error created at/)
+    }),
+    options,
+  )
+
+  return filtered.map((line) => {
+    const tokens = line.split('@')
+    const locationParts = extractLocation(tokens.pop())
+    const functionCall = (tokens.shift() || '')
+    const functionName = functionCall
+      .replace(/<anonymous function(: (\w+))?>/, '$2')
+      .replace(/\([^)]*\)/g, '') || undefined
+    let argsRaw
+    if (functionCall.match(/\(([^)]*)\)/))
+      argsRaw = functionCall.replace(/^[^(]+\(([^)]*)\)$/, '$1')
+
+    const args = (argsRaw === undefined || argsRaw === '[arguments not available]')
+      ? undefined
+      : argsRaw.split(',')
+
+    return {
+      function: functionName,
+      args,
+      file: locationParts[0],
+      line: locationParts[1] ? +locationParts[1] : undefined,
+      col: locationParts[2] ? +locationParts[2] : undefined,
+      raw: line,
+    }
+  })
+}
+
+================
+File: src/shared/bundler.js
+================
+import crypto from "crypto";
+import fs from "fs";
+import fetch from "cross-fetch";
+import { ansi256 } from "ansis";
+
+/**
+ * Uploads a bundle to the Fresk server.
+ *
+ * @param {Object} options - The options for uploading the bundle.
+ * @param {string} options.appId - The application ID for authentication.
+ * @param {string} options.appKey - The application key for authentication.
+ * @param {string} options.endpoint - The application endpoint to upload the bundle to.
+ * @param {string} options.version - The version of the app.
+ * @param {string} options.environment - The environment (e.g., production, staging, development, etc).
+ * @param {boolean} options.verbose - Whether to log verbose output.
+ * @returns {Promise<string | null>} - Returns the bundle id if successful, null otherwise.
+ */
+export const createBundle = async (options) => {
+  const { appKey, appId, endpoint, version, environment, verbose } = options;
+
+  verbose && consoleInfo(`Creating bundle`);
+  const response = await fetch(`${endpoint}/bundle`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      authorization: `Bearer ${appId}:${appKey}`,
+    },
+    body: JSON.stringify({
+      version: version,
+      environment: environment,
+    }),
+  });
+
+  if (!response.ok) {
+    consoleInfo(
+      `Failed to create bundle: ${version} with status: ${response.status}`
+    );
+    return null;
+  }
+
+  // get the body of the response
+  const body = await response.json();
+
+  if (options.verbose) {
+    consoleInfo(`Created bundle: ${body.bundle_id}`);
+  }
+
+  return body.bundle_id;
+};
+
+/**
+ * Uploads a source map to the specified endpoint.
+ *
+ * @param {Object} options - The options for uploading the source map.
+ * @param {string} options.endpoint - The endpoint to upload the source map to.
+ * @param {string} options.appKey - The application key for authentication.
+ * @param {string} options.appId - The application ID for authentication.
+ * @param {boolean} options.verbose - Whether to log verbose output.
+ * @param {string} options.filename - The name of the source map file.
+ * @param {string} options.filePath - The path to the source map file.
+ * @param {string} options.bundleId - The bundle ID of the application.
+ * @returns {Promise<boolean>} - Returns true if the upload was successful, false otherwise.
+ */
+export const uploadSourceMap = async (options) => {
+  const { appKey, appId, endpoint, verbose, filename, filePath, bundleId } =
+    options;
+  let success = true;
+  verbose && consoleInfo(`Uploading ${filename} to Fresk server`);
+  const response = await fetch(`${endpoint}/sourcemap`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      authorization: `Bearer ${appId}:${appKey}`,
+    },
+    body: JSON.stringify({
+      file_name: filename,
+      map: fs.readFileSync(filePath),
+      bundleId: bundleId,
+    }),
+  });
+
+  if (!response.ok) {
+    const data = await response.json();
+    console.error(data);
+    success = false;
+    consoleInfo(
+      `Failed to upload source map: ${filename} with status: ${response.status}`
+    );
+  }
+
+  if (options.verbose) {
+    consoleInfo(`Uploaded ${filename} to Fresk server`);
+  }
+
+  return success;
+};
+
+/**
+ * Generates a snippet of code that assigns the bundle ID to a global variable.
+ *
+ * @param {string} bundleId - The bundle ID to assign.
+ * @param {string} appName - The name of the application.
+ * @returns {string} - The generated snippet of code.
+ */
+export const freskBundleIdSnippet = (bundleId, appName) => {
+  appName = appName.replace(/ /g, "_");
+  return `(function(){try{var g=typeof window!=="undefined"?window:typeof global!=="undefined"?global:typeof self!=="undefined"?self:{};g["__freskBundleId_${appName}"]="${bundleId}"}catch(l){}})();`;
+};
+
+/**
+ * Logs a message to the console with a blue color.
+ *
+ * @param {string} message - The message to log.
+ */
+export const consoleInfo = (message) =>
+  console.info(ansi256(24)`[FRESK] ${message}`);
+
+/**
+ * Logs an error to the console with a blue color.
+ *
+ * @param {string} message - The message to log.
+ */
+export const consoleError = (message) =>
+  console.error(ansi256(31)`[FRESK] ${message}`);
+
+================
+File: src/vite/index.js
+================
+import MagicString from "magic-string";
+import { promises as fs } from 'fs';
+import path from 'path';
+import {
+  freskBundleIdSnippet,
+  createBundle,
+  consoleInfo,
+  consoleError,
+  uploadSourceMap,
+} from "../shared/bundler";
+
+const FILE_EXTENSION_REGEX = /\.(js|ts|jsx|tsx|mjs|cjs)$/;
+
+/**
+ * @typedef {Object} FreskPluginOptions
+ * @property {string} appId - The application ID for authentication.
+ * @property {string} appKey - The application key for authentication.
+ * @property {string} appName - The name of the application.
+ * @property {string} endpoint - The endpoint to upload the bundle to.
+ * @property {string} [environment] - The environment (e.g., production, staging, development).
+ * @property {string} [version] - The version of the app.
+ * @property {string[]} [outputFiles] - The list of output files.
+ * @property {boolean} [deleteMapsAfterBuild] - Whether to delete source maps after build.
+ * @property {boolean} [verbose] - Whether to log verbose output.
+ */
+
+/**
+ * Validates required plugin options
+ * @param {FreskPluginOptions} options 
+ * @throws {Error} If required options are missing
+ */
+function validateOptions(options) {
+  const required = ['appId', 'appKey', 'appName', 'endpoint'];
+  const missing = required.filter(key => !options[key]);
+  
+  if (missing.length > 0) {
+    throw new Error(`Missing required options: ${missing.join(', ')}`);
+  }
+}
+
+/**
+ * Creates a Vite plugin for Fresk source map handling
+ * @param {FreskPluginOptions} pluginOptions
+ * @returns {Promise<import('vite').Plugin>}
+ */
+export default async function freskPlugin(pluginOptions) {
+  validateOptions(pluginOptions);
+
+  const {
+    endpoint,
+    appId,
+    appKey,
+    appName,
+    environment = 'PROD',
+    version = 'unknown',
+    deleteMapsAfterBuild = false,
+    outputFiles = [],
+    verbose = false,
+  } = pluginOptions;
+
+  // Return a no-op plugin in development
+  if (environment === "development") {
+    consoleInfo("Sourcemaps and/or bundles are not created in development");
+    return {
+      name: "vite-plugin-fresk",
+      renderChunk: () => null,
+      writeBundle: () => Promise.resolve(),
+    };
+  }
+
+  const bundleId = await createBundle({
+    appId,
+    appKey,
+    endpoint,
+    environment,
+    verbose,
+    version,
+  });
+
+  if (!bundleId) {
+    throw new Error("Failed to create bundle");
+  }
+
+  const uploadedMaps = new Set();
+
+  return {
+    name: "vite-plugin-fresk",
+    
+    renderChunk(code, chunk) {
+      if (!FILE_EXTENSION_REGEX.test(chunk.fileName)) {
+        return null;
+      }
+
+      const newCode = new MagicString(code);
+      newCode.prepend(freskBundleIdSnippet(bundleId, appName));
+
+      const map = newCode.generateMap({
+        source: chunk.fileName,
+        file: `${chunk.fileName}.map`,
+        includeContent: true,
+      });
+
+      return {
+        code: newCode.toString(),
+        map,
+      };
+    },
+
+    async writeBundle(options, bundle) {
+      const outputPath = options.dir;
+      const failedUploads = [];
+
+      try {
+        for (const [filename, chunk] of Object.entries(bundle)) {
+          if (!shouldProcessFile(filename, outputFiles)) {
+            continue;
+          }
+
+          try {
+            const result = await uploadSourceMap({
+              bundleId,
+              appId,
+              appKey,
+              endpoint,
+              filename,
+              filePath: path.join(outputPath, filename),
+              verbose,
+            });
+
+            if (result) {
+              uploadedMaps.add(filename);
+            } else {
+              failedUploads.push(filename);
+            }
+          } catch (error) {
+            consoleError(`Failed to upload ${filename}: ${error.message}`);
+            failedUploads.push(filename);
+          }
+        }
+
+        if (failedUploads.length > 0) {
+          throw new Error(`Failed to upload some sourcemaps: ${failedUploads.join(', ')}`);
+        }
+
+        if (deleteMapsAfterBuild) {
+          await deleteSourceMaps(outputPath, uploadedMaps);
+        }
+
+        if (verbose && uploadedMaps.size > 0) {
+          consoleInfo(
+            `Uploaded sourcemaps: ${Array.from(uploadedMaps)
+              .map((map) => path.basename(map))
+              .join(", ")}`
+          );
+        }
+      } catch (error) {
+        consoleError(`Bundle processing failed: ${error.message}`);
+        throw error; // Re-throw to indicate build failure
+      }
+    },
+  };
+}
+
+/**
+ * Determines if a file should be processed based on configuration
+ * @param {string} filename 
+ * @param {string[]} outputFiles 
+ * @returns {boolean}
+ */
+function shouldProcessFile(filename, outputFiles) {
+  if (!filename.endsWith('.map')) {
+    return false;
+  }
+
+  if (outputFiles.length === 0) {
+    return true;
+  }
+
+  return outputFiles.some(pattern => 
+    filename === pattern + '.map' || 
+    filename.startsWith(pattern + '/')
+  );
+}
+
+/**
+ * Deletes uploaded source maps
+ * @param {string} outputPath 
+ * @param {Set<string>} uploadedMaps 
+ */
+async function deleteSourceMaps(outputPath, uploadedMaps) {
+  const deletionPromises = Array.from(uploadedMaps).map(async (mapFile) => {
+    const mapPath = path.join(outputPath, mapFile);
+    try {
+      await fs.unlink(mapPath);
+      consoleInfo(`Deleted source map: ${mapPath}`);
+    } catch (error) {
+      consoleError(`Failed to delete ${mapPath}: ${error.message}`);
+    }
+  });
+
+  await Promise.all(deletionPromises);
+}
+
+================
+File: src/mod.js
+================
+export { default as FreskPluginVite } from "./vite/index.js";
+export { default as FreskWebSDK } from "./core/index.js";

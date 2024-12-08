@@ -1,4 +1,3 @@
-import crypto from "crypto";
 import fs from "fs";
 import fetch from "cross-fetch";
 import { ansi256 } from "ansis";
