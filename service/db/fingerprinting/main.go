@@ -9,8 +9,15 @@ import (
 
 	"github.com/pocketbase/dbx"
 	"github.com/pocketbase/pocketbase"
-	"github.com/pocketbase/pocketbase/models"
+	"github.com/pocketbase/pocketbase/core"
 )
+
+type ErrorGroup struct {
+	Id      string `db:"id"`
+	App     string `db:"app"`
+	LogType string `db:"log_type"`
+	Value   string `db:"value"`
+}
 
 func GenerateFingerprint(reqBody *types.RequestBody) string {
 	// Combine relevant fields for fingerprinting
@@ -46,34 +53,35 @@ func FindOrCreateErrorGroup(app *pocketbase.PocketBase, reqBody *types.RequestBo
 	normalizedValue := normalizeErrorMessage(reqBody.Value)
 
 	// Try to find existing error group
-	errorGroups, err := app.Dao().FindRecordsByExpr("error_groups",
-		dbx.And(
-			dbx.HashExp{"app": reqBody.AppID},
-			dbx.HashExp{"log_type": reqBody.LogType},
-			dbx.NewExp("LOWER(TRIM(value)) LIKE {:normalized_value}", dbx.Params{"normalized_value": "%" + normalizedValue + "%"}),
-		),
-	)
+	errorGroup := ErrorGroup{}
+	err := app.DB().NewQuery(`
+	SELECT id, app, log_type, value
+	FROM error_groups
+	WHERE app = {:app} AND log_type = {:log_type} AND LOWER(TRIM(value)) LIKE {:normalized_value}
+	LIMIT 1
+`).Bind(dbx.Params{
+		"app":              reqBody.AppID,
+		"log_type":         reqBody.LogType,
+		"normalized_value": "%" + normalizedValue + "%",
+	}).One(&errorGroup)
+
 	if err != nil {
 		return "", err
-	}
-
-	// If error group exists, return its ID
-	if len(errorGroups) > 0 {
-		return errorGroups[0].Id, nil
 	}
 
 	// If not, create a new error group
-	collection, err := app.Dao().FindCollectionByNameOrId("error_groups")
+	collection, err := app.FindCollectionByNameOrId("error_groups")
 	if err != nil {
 		return "", err
 	}
 
-	newGroup := models.NewRecord(collection)
+	newGroup := core.NewRecord(collection)
 	newGroup.Set("app", reqBody.AppID)
 	newGroup.Set("log_type", reqBody.LogType)
 	newGroup.Set("value", normalizedValue) // Store the normalized value
 
-	if err := app.Dao().SaveRecord(newGroup); err != nil {
+	if err := app.Save(newGroup)
+	err != nil {
 		return "", err
 	}
 
