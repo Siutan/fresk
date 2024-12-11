@@ -37,6 +37,13 @@ type Config struct {
 
 var config Config
 
+// TODO:
+// - add a way to generate app key, maybe signed jwt with app data eg. app_id, app_name etc?
+// - instead of storing and using an app key, use a signing secret stored the config file to sign the jwt.
+// - check if the jwt is valid with the signing secret and if it is, the request is valid.
+// - The jwt can be passed in the header as "Authorization: Bearer <jwt>"
+// - depending on the data maybe a new jwt can be generated with each bundle?
+
 func main() {
 	app := pocketbase.New()
 
@@ -81,7 +88,7 @@ func main() {
 			}
 
 			if appId == "" || appKey == "" {
-				return e.UnauthorizedError("Invalid credentials", err.Error())
+				return e.UnauthorizedError("Invalid credentials", "")
 			}
 
 			// check if the app id and key match an app in the database
@@ -92,7 +99,7 @@ func main() {
 			}
 
 			if appData.Get("app_key") != appKey {
-				return e.UnauthorizedError("Invalid credentials", err.Error())
+				return e.UnauthorizedError("Invalid credentials", "")
 			}
 
 			if e.Request.Body == nil {
@@ -190,7 +197,7 @@ func main() {
 			}
 
 			if appId == "" || appKey == "" {
-				return e.UnauthorizedError("Invalid credentials", err.Error())
+				return e.UnauthorizedError("Invalid credentials", "")
 			}
 
 			// check if the app id and key match an app in the database
@@ -201,7 +208,7 @@ func main() {
 			}
 
 			if appRecord.Get("app_key") != appKey {
-				return e.UnauthorizedError("Invalid credentials", err.Error())
+				return e.UnauthorizedError("Invalid credentials", "")
 			}
 
 			// Check if the request body exists and the content type is JSON
@@ -266,7 +273,7 @@ func main() {
 
 			// check if the key matches the one in the app record
 			if appRecord.Get("app_key") != appKey {
-				return e.UnauthorizedError("Invalid credentials", err.Error())
+				return e.UnauthorizedError("Invalid credentials", "")
 			}
 
 			// Check if the request body exists and the content type is JSON
