@@ -34,6 +34,7 @@
   "type": "module",
   "dependencies": {
     "bits-ui": "^0.21.16",
+    "caniuse-lite": "^1.0.30001700",
     "clsx": "^2.1.1",
     "d3-array": "^3.2.4",
     "d3-scale": "^4.0.2",
