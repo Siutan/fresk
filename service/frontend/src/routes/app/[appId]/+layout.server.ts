@@ -8,13 +8,21 @@ export const load: LayoutServerLoad = async ({ params, locals, depends }) => {
   const appId = params.appId;
   if (!appId) return error(404, { message: "Error loading app" });
   const appDetails = await loadAppDetails(locals.pb, appId);
+  const apps = await loadApps(locals.pb);
   return {
     app: appDetails,
+    apps,
   };
 };
 
 const loadAppDetails = async (pb: Client, appId: string) => {
   const { data, error: appError } = await pbGet.getAppById(pb, appId);
   if (appError || !data) error(404, { message: "Error loading app" });
+  return data;
+};
+
+const loadApps = async (pb: Client) => {
+  const { data, error } = await pbGet.getAllApps(pb);
+  if (error || !data) return [];
   return data;
 };
