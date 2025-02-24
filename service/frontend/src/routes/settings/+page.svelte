@@ -1,9 +1,11 @@
 <script lang="ts">
-  import type { PageData } from "../$types";
+  import Button from "$lib/components/ui/button/button.svelte";
 
-  export let data: PageData;
 </script>
 
 <div class="flex flex-1 w-full min-h-dvh">
-  settings
+
+  <form method="post" action="?/logout">
+    <Button variant="destructive" type="submit">Logout</Button>
+  </form>
 </div>

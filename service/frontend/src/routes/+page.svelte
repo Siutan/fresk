@@ -1,11 +1,11 @@
 <script lang="ts">
   import AppCard from "$lib/components/app-card.svelte";
-  import { pbGet } from "$lib/queries/get";
   import type { PageData } from "./$types";
 
   export let data: PageData;
 
   const { apps } = data;
+  console.log(apps);
 </script>
 
 <div class="w-full grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3 p-4">
